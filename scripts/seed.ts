@@ -22,6 +22,8 @@ const INDEXES = {
   knowledge: "aegis-knowledge-base",
   threats: "aegis-threat-patterns",
   evalCases: "aegis-eval-cases",
+  traces: "aegis-traces",
+  evalRuns: "aegis-eval-runs",
 } as const;
 
 async function upsertIndex(client: MossClient, indexName: string, docs: DocumentInfo[]) {
@@ -68,6 +70,24 @@ async function main() {
     metadata: { category: c.category, expected_verdict: c.expectedVerdict },
   }));
   await upsertIndex(client, INDEXES.evalCases, evalDocs);
+
+  // aegis-traces and aegis-eval-runs are written to at runtime (addDocs), which
+  // requires the index to already exist — so create them here with a seed
+  // placeholder doc. getEvalHistory()/searchTraces() filter this doc out.
+  await upsertIndex(client, INDEXES.traces, [
+    {
+      id: "seed-placeholder",
+      text: "Aegis trace log initialized.",
+      metadata: { seed: "true" },
+    },
+  ]);
+  await upsertIndex(client, INDEXES.evalRuns, [
+    {
+      id: "seed-placeholder",
+      text: "Aegis eval run log initialized.",
+      metadata: { seed: "true" },
+    },
+  ]);
 
   console.log("\nDone. Indexes ready:");
   for (const name of Object.values(INDEXES)) {

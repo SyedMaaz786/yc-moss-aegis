@@ -106,6 +106,7 @@ export async function getEvalHistory(): Promise<
     const client = getMossClient();
     const docs = await client.getDocs(INDEXES.evalRuns);
     return docs
+      .filter((d) => d.metadata?.seed !== "true")
       .map((d) => ({
         id: d.id,
         timestamp: d.metadata?.timestamp ?? "",

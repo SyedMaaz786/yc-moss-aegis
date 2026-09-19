@@ -67,5 +67,6 @@ async function persistTrace(trace: Trace): Promise<void> {
 }
 
 export async function searchTraces(query: string, topK = 10) {
-  return mossQuery(INDEXES.traces, query, { topK });
+  const result = await mossQuery(INDEXES.traces, query, { topK: topK + 1 });
+  return { ...result, docs: result.docs.filter((d) => d.metadata?.seed !== "true").slice(0, topK) };
 }

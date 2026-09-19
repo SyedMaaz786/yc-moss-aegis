@@ -8,6 +8,9 @@ import type { Trace, TraceStep } from "./types";
 const SAFE_FALLBACK_ANSWER =
   "I can't share that here for security reasons. Please verify your identity with a human banker to continue, or call the number on the back of your card.";
 
+const RETRIEVAL_DOWN_ANSWER =
+  "I can't reach my knowledge base right now, so I don't want to guess at bank policy. Please try again in a moment, or contact a human banker.";
+
 function buildSystemPrompt(context: string): string {
   return `You are Aegis, the AI support assistant for Northbridge Bank (a fictional demo bank).
 Answer the customer's question using ONLY the policy context below. If the answer isn't in the context, say you don't have that information and offer to connect them with a human agent. Keep answers under 4 sentences.
@@ -56,7 +59,26 @@ export async function runAgentTurn(userMessage: string): Promise<Trace> {
   }
 
   const retrievalStart = performance.now();
-  const retrieval = await mossQuery(INDEXES.knowledge, userMessage, { topK: 4 });
+  let retrieval: Awaited<ReturnType<typeof mossQuery>>;
+  try {
+    retrieval = await mossQuery(INDEXES.knowledge, userMessage, { topK: 4 });
+  } catch (err) {
+    console.error("[agent] Moss retrieval failed", err);
+    const retrievalMs = performance.now() - retrievalStart;
+    steps.push({ name: "retrieval", ms: retrievalMs, detail: "Moss retrieval unavailable" });
+    const trace: Trace = {
+      id,
+      timestamp,
+      userMessage,
+      steps,
+      totalMs: performance.now() - t0,
+      guardrailVerdict: "warn",
+      blockedReason: "Retrieval infrastructure unavailable — answered without a policy lookup, or declined.",
+      answer: RETRIEVAL_DOWN_ANSWER,
+    };
+    recordTrace(trace);
+    return trace;
+  }
   steps.push({
     name: "retrieval",
     ms: performance.now() - retrievalStart,

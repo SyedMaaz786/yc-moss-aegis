@@ -33,12 +33,18 @@ interface PiiPattern {
   re: RegExp;
 }
 
+// Deliberately narrow: these match a user PASTING sensitive data into chat, or
+// explicitly asking the agent to DISCLOSE/CONFIRM it — not routine banking
+// questions. ("What's your routing number" and "how do I reset my password"
+// are both completely benign and must not trip this.)
 const PII_PATTERNS: PiiPattern[] = [
   { name: "ssn", re: /\b\d{3}-\d{2}-\d{4}\b/ },
   { name: "card_number", re: /\b(?:\d[ -]?){13,16}\b/ },
-  { name: "cvv_mention", re: /\bcvv\b/i },
-  { name: "routing_number", re: /\brouting\s*number\b/i },
-  { name: "password_request", re: /\b(my|the) (password|passcode|pin)\b/i },
+  { name: "cvv_disclosure", re: /\b(tell|give|confirm|read back|repeat|show|reveal)\b.{0,40}\bcvv\b/i },
+  {
+    name: "credential_disclosure",
+    re: /\b(tell me|what(?:'s| is)|confirm|read back|repeat|say|reveal|give me)\b.{0,40}\b(my|the) (password|passcode|pin)\b/i,
+  },
 ];
 
 export interface GuardrailResult {
