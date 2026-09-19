@@ -13,10 +13,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "Aegis — Trust Layer for AI Agents";
+const DESCRIPTION =
+  "Real-time guardrails, grounding checks, latency tracing, and an evaluation harness for AI agents, built on Moss. YC Fall 2026 x Moss Zero Latency Builder Sprint.";
+
 export const metadata: Metadata = {
-  title: "Aegis — Trust Layer for AI Agents",
-  description:
-    "Real-time guardrails, grounding checks, latency tracing, and an evaluation harness for AI agents, built on Moss.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "Aegis",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
