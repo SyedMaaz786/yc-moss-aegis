@@ -1,0 +1,77 @@
+[
+  {
+    "id": "kb-refunds-01",
+    "text": "Refunds for disputed card transactions are processed within 5-7 business days after Northbridge Bank approves the dispute. You will see a provisional credit within 2 business days while the investigation is open.",
+    "metadata": { "category": "refunds", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-refunds-02",
+    "text": "If a merchant refund does not appear after 10 business days, customers can open a dispute through the mobile app under Transactions > Report an Issue, or call support at the number on the back of their card.",
+    "metadata": { "category": "refunds", "doc_type": "procedure" }
+  },
+  {
+    "id": "kb-fees-01",
+    "text": "Northbridge Bank checking accounts have no monthly maintenance fee when the account holder maintains a minimum daily balance of $500, or receives a qualifying direct deposit of $250 or more per month.",
+    "metadata": { "category": "fees", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-fees-02",
+    "text": "Out-of-network ATM withdrawals incur a $2.50 Northbridge Bank fee, in addition to any surcharge charged by the ATM operator. In-network ATMs (Allpoint, Northbridge branches) are always free.",
+    "metadata": { "category": "fees", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-fees-03",
+    "text": "Overdraft coverage is opt-in only. Without opt-in, transactions that would overdraw the account are declined at no charge. With opt-in, each overdraft is a flat $34 fee, capped at 3 per day.",
+    "metadata": { "category": "fees", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-transfers-01",
+    "text": "Standard transfers between Northbridge accounts post instantly. External transfers via ACH take 1-3 business days. Wire transfers submitted before 3 PM ET on a business day are usually same-day.",
+    "metadata": { "category": "transfers", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-transfers-02",
+    "text": "Daily transfer limits are $5,000 for Zelle, $10,000 for external ACH, and $100,000 for domestic wires, unless a temporary limit increase has been approved through a branch or verified phone call.",
+    "metadata": { "category": "transfers", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-security-01",
+    "text": "Northbridge Bank never asks customers for their online banking password, full card number, or one-time passcode over the phone, email, or chat. Any message requesting these should be treated as fraud.",
+    "metadata": { "category": "security", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-security-02",
+    "text": "If a customer suspects their account has been compromised, they should immediately freeze their card in the mobile app under Cards > Freeze Card, then contact support to review recent activity.",
+    "metadata": { "category": "security", "doc_type": "procedure" }
+  },
+  {
+    "id": "kb-security-03",
+    "text": "Two-factor authentication is required to log in from a new device. Customers can manage trusted devices under Settings > Security > Devices, and can revoke access to any device remotely.",
+    "metadata": { "category": "security", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-deposits-01",
+    "text": "Mobile check deposits are available up to $5,000 per check and $10,000 per rolling 30 days for standard accounts. Funds are typically available within 1 business day, with the first $225 available immediately.",
+    "metadata": { "category": "deposits", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-disputes-01",
+    "text": "To dispute a transaction you don't recognize, use the mobile app's Report an Issue flow or call support. Disputes must be filed within 60 days of the statement date under Regulation E for electronic transfers.",
+    "metadata": { "category": "disputes", "doc_type": "policy" }
+  },
+  {
+    "id": "kb-cards-01",
+    "text": "Lost or stolen debit cards can be frozen instantly in the mobile app and a replacement ordered for free, arriving in 5-7 business days. Expedited 2-day shipping is available for a $15 fee.",
+    "metadata": { "category": "cards", "doc_type": "procedure" }
+  },
+  {
+    "id": "kb-accounts-01",
+    "text": "Closing an account requires a zero balance and no pending transactions. Customers can close an account in the mobile app under Settings > Accounts > Close Account, or by calling support.",
+    "metadata": { "category": "accounts", "doc_type": "procedure" }
+  },
+  {
+    "id": "kb-support-01",
+    "text": "Northbridge Bank customer support is available 24/7 via in-app chat and phone. Human agents can be reached by saying 'talk to a person' at any point in the automated phone menu.",
+    "metadata": { "category": "support", "doc_type": "policy" }
+  }
+]

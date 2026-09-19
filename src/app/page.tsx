@@ -1,69 +1,112 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { Trace } from "@/lib/types";
+import { ChatPanel } from "@/components/ChatPanel";
+import { GuardrailFeed } from "@/components/GuardrailFeed";
+import { StatCard } from "@/components/StatCard";
+import { TraceSearch } from "@/components/TraceSearch";
+
+interface Stats {
+  total: number;
+  blocked: number;
+  warned: number;
+  allowed: number;
+  avgLatencyMs: number;
+  avgGroundingScore?: number;
+}
 
 export default function Home() {
+  const [traces, setTraces] = useState<Trace[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/traces");
+      if (!res.ok) return;
+      const data = await res.json();
+      setStats(data.stats);
+      setTraces((prev) => {
+        const byId = new Map(prev.map((t) => [t.id, t]));
+        for (const t of data.traces as Trace[]) byId.set(t.id, t);
+        return Array.from(byId.values()).sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+      });
+    } catch {
+      // best-effort background refresh
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional fetch-on-mount + poll
+    refresh();
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [refresh]);
+
+  const handleTrace = useCallback((trace: Trace) => {
+    setTraces((prev) => [trace, ...prev.filter((t) => t.id !== trace.id)]);
+    setStats((prev) => {
+      const total = (prev?.total ?? 0) + 1;
+      const blocked = (prev?.blocked ?? 0) + (trace.guardrailVerdict === "block" ? 1 : 0);
+      const warned = (prev?.warned ?? 0) + (trace.guardrailVerdict === "warn" ? 1 : 0);
+      return {
+        total,
+        blocked,
+        warned,
+        allowed: total - blocked - warned,
+        avgLatencyMs: prev ? (prev.avgLatencyMs * (total - 1) + trace.totalMs) / total : trace.totalMs,
+        avgGroundingScore: trace.groundingScore ?? prev?.avgGroundingScore,
+      };
+    });
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold tracking-tight">Live Trust Console</h1>
+        <p className="text-sm text-text-secondary mt-1 max-w-2xl">
+          Every message below is checked against a Moss-backed threat-pattern index before the agent responds, and
+          every response is re-checked for grounding and leaked PII before it reaches the user — all timed and
+          traced in real time.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard label="Requests this session" value={String(stats?.total ?? 0)} />
+        <StatCard
+          label="Blocked"
+          value={String(stats?.blocked ?? 0)}
+          accent={stats && stats.blocked > 0 ? "critical" : "neutral"}
+          sub={stats && stats.total > 0 ? `${((stats.blocked / stats.total) * 100).toFixed(0)}% of traffic` : undefined}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <StatCard
+          label="Avg. latency"
+          value={stats ? `${stats.avgLatencyMs.toFixed(0)} ms` : "—"}
+          accent="neutral"
+        />
+        <StatCard
+          label="Avg. grounding"
+          value={stats?.avgGroundingScore !== undefined ? `${Math.round(stats.avgGroundingScore * 100)}%` : "—"}
+          accent={stats?.avgGroundingScore !== undefined && stats.avgGroundingScore >= 0.55 ? "good" : "warning"}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChatPanel onTrace={handleTrace} />
+
+        <div className="space-y-6">
+          <div className="rounded-xl border border-border bg-surface-1 p-4">
+            <h2 className="text-sm font-semibold mb-3">Guardrail feed</h2>
+            <GuardrailFeed traces={traces} />
+          </div>
+          <div className="rounded-xl border border-border bg-surface-1 p-4">
+            <h2 className="text-sm font-semibold mb-3">Trace search</h2>
+            <TraceSearch />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

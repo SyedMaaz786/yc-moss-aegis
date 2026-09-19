@@ -1,0 +1,171 @@
+import { INDEXES, mossQuery } from "./moss";
+import type { GroundingVerdict, RetrievedDoc } from "./types";
+
+/** Semantic similarity score (0-1) against the threat-patterns index above which a message is blocked outright. */
+const BLOCK_THRESHOLD = 0.6;
+/** Below BLOCK but above this, the message is allowed through but flagged for review. */
+const WARN_THRESHOLD = 0.4;
+
+/** Grounding score thresholds against the knowledge-base index. */
+const GROUNDED_THRESHOLD = 0.55;
+const WEAK_THRESHOLD = 0.35;
+
+/**
+ * Fast local pre-filter for unambiguous injection phrasing. Catches the
+ * obvious cases in ~0ms so they never even pay for a Moss round trip, and
+ * backstops the semantic check for adversarial phrasing that's lexically
+ * blunt but might sit just under the semantic threshold.
+ */
+const INJECTION_MARKERS: RegExp[] = [
+  /ignore (all|any|the)?\s*(previous|prior|above)\s*instructions?/i,
+  /disregard (your|the) (system prompt|guidelines|rules|instructions)/i,
+  /forget everything (you (were|have been) told|above)/i,
+  /you are (now|actually) (DAN|in developer mode|unrestricted)/i,
+  /act as if you have no (restrictions|filters|guardrails|rules)/i,
+  /pretend (you are|to be) .*(without|with no) (any )?(restrictions|rules|filters)/i,
+  /system\s*override/i,
+  /reveal (your|the) (system prompt|instructions)/i,
+  /print (your|the) (system prompt|full instructions)/i,
+];
+
+interface PiiPattern {
+  name: string;
+  re: RegExp;
+}
+
+const PII_PATTERNS: PiiPattern[] = [
+  { name: "ssn", re: /\b\d{3}-\d{2}-\d{4}\b/ },
+  { name: "card_number", re: /\b(?:\d[ -]?){13,16}\b/ },
+  { name: "cvv_mention", re: /\bcvv\b/i },
+  { name: "routing_number", re: /\brouting\s*number\b/i },
+  { name: "password_request", re: /\b(my|the) (password|passcode|pin)\b/i },
+];
+
+export interface GuardrailResult {
+  verdict: "allow" | "warn" | "block";
+  reason?: string;
+  matchedPattern?: string;
+  threatType?: string;
+  score: number;
+  latencyMs: number;
+  mossLatencyMs?: number;
+  piiDetected?: string[];
+}
+
+export async function checkInput(message: string): Promise<GuardrailResult> {
+  const start = performance.now();
+
+  const piiHits = PII_PATTERNS.filter((p) => p.re.test(message)).map((p) => p.name);
+  const regexHit = INJECTION_MARKERS.some((re) => re.test(message));
+
+  let topScore = 0;
+  let topText: string | undefined;
+  let topThreatType: string | undefined;
+  let mossLatencyMs: number | undefined;
+
+  try {
+    const result = await mossQuery(INDEXES.threats, message, { topK: 3 });
+    mossLatencyMs = result.timeTakenInMs;
+    const top = result.docs[0];
+    if (top) {
+      topScore = top.score;
+      topText = top.text;
+      topThreatType = top.metadata?.threat_type;
+    }
+  } catch (err) {
+    console.error("[guardrails] threat-pattern query failed, falling back to regex-only", err);
+  }
+
+  const latencyMs = performance.now() - start;
+  const blocked = regexHit || topScore >= BLOCK_THRESHOLD || piiHits.length > 0;
+
+  if (blocked) {
+    return {
+      verdict: "block",
+      reason: piiHits.length
+        ? `Request asks the agent to expose or confirm sensitive data (${piiHits.join(", ")}).`
+        : regexHit
+          ? "Message matches a known prompt-injection / jailbreak phrasing pattern."
+          : `Message is semantically similar (score ${topScore.toFixed(2)}) to a known attack: "${topText}"`,
+      matchedPattern: topText,
+      threatType: topThreatType ?? (piiHits.length ? "pii_exfiltration" : "prompt_injection"),
+      score: topScore,
+      latencyMs,
+      mossLatencyMs,
+      piiDetected: piiHits.length ? piiHits : undefined,
+    };
+  }
+
+  if (topScore >= WARN_THRESHOLD) {
+    return {
+      verdict: "warn",
+      reason: `Elevated similarity (${topScore.toFixed(2)}) to threat pattern "${topText}", but below the block threshold.`,
+      matchedPattern: topText,
+      threatType: topThreatType,
+      score: topScore,
+      latencyMs,
+      mossLatencyMs,
+    };
+  }
+
+  return { verdict: "allow", score: topScore, latencyMs, mossLatencyMs };
+}
+
+export interface GroundingResult {
+  score: number;
+  verdict: GroundingVerdict;
+  latencyMs: number;
+  mossLatencyMs?: number;
+  supportingDocIds: string[];
+}
+
+/**
+ * Faithfulness check: re-query the knowledge base using the AGENT'S ANSWER as
+ * the query. If the answer is truly grounded in the docs it was given, it
+ * should semantically re-retrieve those same docs with a high score. If the
+ * top results diverge from the original context, the answer likely drifted
+ * or hallucinated beyond what was retrieved.
+ */
+export async function checkGrounding(answer: string, contextDocIds: string[]): Promise<GroundingResult> {
+  const start = performance.now();
+
+  if (!answer.trim()) {
+    return { score: 0, verdict: "ungrounded", latencyMs: performance.now() - start, supportingDocIds: [] };
+  }
+
+  let docs: RetrievedDoc[] = [];
+  let mossLatencyMs: number | undefined;
+  try {
+    const result = await mossQuery(INDEXES.knowledge, answer, { topK: 5 });
+    mossLatencyMs = result.timeTakenInMs;
+    docs = result.docs.map((d) => ({ id: d.id, text: d.text, score: d.score }));
+  } catch (err) {
+    console.error("[guardrails] grounding query failed", err);
+  }
+
+  const latencyMs = performance.now() - start;
+  const overlap = docs.filter((d) => contextDocIds.includes(d.id));
+  const topScore = docs[0]?.score ?? 0;
+
+  const score = contextDocIds.length
+    ? overlap.length
+      ? overlap.reduce((sum, d) => sum + d.score, 0) / overlap.length
+      : 0
+    : topScore;
+
+  const verdict: GroundingVerdict =
+    score >= GROUNDED_THRESHOLD ? "grounded" : score >= WEAK_THRESHOLD ? "weak" : "ungrounded";
+
+  return { score, verdict, latencyMs, mossLatencyMs, supportingDocIds: overlap.map((d) => d.id) };
+}
+
+/** Scan agent OUTPUT for anything that looks like it leaked sensitive data, independent of the input check. */
+export function scanOutputForPii(text: string): string[] {
+  const hits: string[] = [];
+  if (/\b\d{3}-\d{2}-\d{4}\b/.test(text)) hits.push("ssn");
+  if (/\b(?:\d[ -]?){13,16}\b/.test(text)) hits.push("card_number");
+  if (/\b\d{9,17}\b/.test(text.replace(/[^\d\s]/g, " ")) && /account|routing/i.test(text)) {
+    hits.push("account_number");
+  }
+  return hits;
+}
