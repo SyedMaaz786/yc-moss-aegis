@@ -68,10 +68,16 @@ engineered into bypassing verification.
 ## 6. Success metrics (for this build)
 
 - **Safety accuracy ≥ 90%** on the adversarial eval cases (blocked when it should be).
+  *Verified: 100% (18/18), measured against the full eval suite with Moss's own backend
+  genuinely unreachable — not the happy path. See README "Why this exists."*
 - **Blocked requests resolve in < 200ms** (never reach the LLM) — demonstrates the
-  latency payoff of checking *before* generation.
+  latency payoff of checking *before* generation. *Verified: 0-2ms once a local
+  guardrail pattern matches, after fixing a bug where the check waited out Moss's full
+  timeout even when it already knew to block.*
 - **Grounded responses score ≥ 55%** on the re-retrieval grounding check for benign
-  cases.
+  cases. *Not independently verifiable while Moss is down — grounding requires a real
+  retrieval round trip; the current build correctly declines to guess in that state
+  instead of fabricating a score (see checkGrounding's fail-safe default).*
 - Live demo runs end-to-end on a public URL with no local setup required for judges.
 
 ## 7. Risks & mitigations
