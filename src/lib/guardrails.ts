@@ -70,7 +70,10 @@ export async function checkInput(message: string): Promise<GuardrailResult> {
   let mossLatencyMs: number | undefined;
 
   try {
-    const result = await mossQuery(INDEXES.threats, message, { topK: 3 });
+    // Tight budget: this check must never make a blocked request slower than
+    // the regex fallback it's backed by. A degraded Moss backend falls
+    // through to the regex-only path below well before a user would notice.
+    const result = await mossQuery(INDEXES.threats, message, { topK: 3, timeoutMs: 1200 });
     mossLatencyMs = result.timeTakenInMs;
     const top = result.docs[0];
     if (top) {

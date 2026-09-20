@@ -1,4 +1,5 @@
 import { MossClient, type SearchResult, type QueryOptions } from "@moss-dev/moss";
+import { isChaosMossDown } from "./chaos";
 
 export const INDEXES = {
   knowledge: "aegis-knowledge-base",
@@ -29,6 +30,9 @@ function credentials() {
  * the client-construction + index-load cost on every request.
  */
 export function getMossClient(): MossClient {
+  if (isChaosMossDown()) {
+    throw new Error("Simulated Moss outage (chaos toggle enabled) — not a real failure.");
+  }
   if (!globalThis.__aegisMossClient) {
     const { projectId, projectKey } = credentials();
     globalThis.__aegisMossClient = new MossClient(projectId, projectKey);
@@ -51,13 +55,36 @@ export async function ensureLoaded(indexName: string): Promise<void> {
   loaded.add(indexName);
 }
 
-/** Query an index, loading it into memory first if this warm instance hasn't already. */
+/** Default hard ceiling on a Moss round trip so a slow or hanging upstream can never blow a request's latency budget. */
+const DEFAULT_TIMEOUT_MS = 3000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Moss call exceeded its ${timeoutMs}ms budget`)), timeoutMs)
+    ),
+  ]);
+}
+
+/**
+ * Query an index, loading it into memory first if this warm instance hasn't
+ * already. Bounded by `timeoutMs` (default 3s) end-to-end — including the
+ * first-load cost — so a degraded Moss backend fails the caller's try/catch
+ * fast instead of hanging the request.
+ */
 export async function mossQuery(
   indexName: string,
   query: string,
-  options?: QueryOptions
+  options?: QueryOptions & { timeoutMs?: number }
 ): Promise<SearchResult> {
-  await ensureLoaded(indexName);
-  const client = getMossClient();
-  return client.query(indexName, query, options);
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...queryOptions } = options ?? {};
+  return withTimeout(
+    (async () => {
+      await ensureLoaded(indexName);
+      const client = getMossClient();
+      return client.query(indexName, query, queryOptions);
+    })(),
+    timeoutMs
+  );
 }

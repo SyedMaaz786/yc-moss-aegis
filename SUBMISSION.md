@@ -32,6 +32,19 @@ evaluation harness runs 16 benign + adversarial test cases on demand and
 scores safety accuracy, grounding, and latency budgets, persisting every run
 so regressions are visible over time.
 
+It also does something most hackathon submissions don't get to demonstrate
+honestly: it proves its own reliability claim under a real failure. Every
+Moss call is timeout-bounded and backed by a tested fallback (regex
+guardrails, fail-safe "ungrounded" scoring rather than a fabricated one), a
+live status banner reports Moss's actual health on every page, and a
+one-click chaos toggle forces a simulated outage on demand so a judge can
+verify the failover themselves instead of taking a slide's word for it. As it
+happens, Moss's model CDN and cloud query API were both genuinely down for
+part of the build window — the banner reported that honestly, the fallback
+held, and 11 automated tests (`npm test`, zero credentials required, run in
+CI on every push) pin that behavior down as a regression test, not just a
+one-time demo.
+
 ## How did you use Moss in your retrieval layer?
 Moss is used for three different jobs, not just RAG retrieval:
 1. Input guardrail: the user's message is semantically matched (sub-10ms)
@@ -50,7 +63,10 @@ Moss is used for three different jobs, not just RAG retrieval:
 
 Because Moss's retrieval is fast enough to run on every turn (not just at
 index time), all three checks run inline in the request path instead of as a
-slow, separate offline process.
+slow, separate offline process. And because Moss is now load-bearing for
+security decisions rather than just answer quality, every call to it is
+timeout-bounded and has a tested local fallback — see "Why this exists: built
+during a live Moss outage" in the README.
 
 ## Impact
 Guardrails and evals are usually the first thing cut from an AI agent's

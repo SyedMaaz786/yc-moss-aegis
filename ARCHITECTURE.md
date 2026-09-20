@@ -18,6 +18,7 @@ flowchart TB
         Chat["/api/chat"]
         Traces["/api/traces\n/api/traces/search"]
         EvalRun["/api/eval/run\n/api/eval/history"]
+        Health["/api/system/health\n/api/system/chaos"]
     end
 
     subgraph Lib["src/lib"]
@@ -26,7 +27,8 @@ flowchart TB
         Tracing["tracing.ts\nin-memory feed + Moss persistence"]
         Evaluation["evaluation.ts\nruns the fixed test suite"]
         Claude["claude.ts\nAnthropic SDK wrapper"]
-        Moss["moss.ts\nMossClient singleton"]
+        Moss["moss.ts\nMossClient singleton\ntimeout-bounded queries"]
+        Chaos["chaos.ts\ndemo outage toggle"]
     end
 
     subgraph MossCloud["Moss (sub-10ms local-first retrieval)"]
@@ -40,7 +42,8 @@ flowchart TB
 
     UI --> Chat --> Agent
     UI --> Traces
-    UI --> Traces2["POST /api/traces/search"] 
+    UI --> Traces2["POST /api/traces/search"]
+    UI -->|polls every 8s| Health
     EvalUI --> EvalRun --> Evaluation --> Agent
 
     Agent --> Guardrails
@@ -48,10 +51,12 @@ flowchart TB
     Agent --> Claude --> Anthropic
     Agent --> Tracing
 
-    Guardrails -->|semantic threat match| Moss
+    Guardrails -->|semantic threat match, 1.2s budget| Moss
     Guardrails -->|grounding re-retrieval| Moss
     Moss --> KB
     Moss --> Threats
+    Chaos -.->|forces every call to fail| Moss
+    Health --> Moss
 
     Tracing -->|fire-and-forget upsert| TracesIdx
     Evaluation -->|persist report| EvalIdx
@@ -124,6 +129,17 @@ sequenceDiagram
   on `globalThis` so a warm serverless instance reuses the loaded index and
   open connections instead of re-paying Moss's `loadIndex()` cost on every
   request.
+- **Every Moss call is timeout-bounded, not just try/catch-wrapped.** `mossQuery`
+  (`src/lib/moss.ts`) races the actual Moss round trip against a hard deadline (1.2s
+  on the input guardrail, 3s by default elsewhere) so a *slow* or hanging upstream
+  fails exactly like a *down* one — the caller's existing fallback handles both
+  identically. A single chokepoint (`getMossClient`) also checks a demo-only chaos
+  flag (`src/lib/chaos.ts`), so `/api/system/chaos` can force every Moss call in the
+  app to fail on command without touching any other code path.
+- **Health is reported from real traffic, not a synthetic ping.** `/api/system/health`
+  runs an actual `mossQuery` through the same `ensureLoaded`/timeout path production
+  requests use, so the status banner it feeds can never claim "healthy" while real
+  requests are failing, or vice versa.
 
 ## Data flow summary
 

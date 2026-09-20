@@ -53,6 +53,35 @@ lifecycle, and [`PRD.md`](./PRD.md) for the product spec.
   pre-filter for input, re-retrieval grounding + PII regex scan for output.
 - **Agent pipeline** (`src/lib/agent.ts`) — orchestrates input guardrail → Moss retrieval
   → Claude generation → output guardrail, with per-step timing on every turn.
+- **Live reliability status banner** — a persistent bar (`/api/system/health`,
+  `src/components/SystemStatusBanner.tsx`) that reports Moss's actual round-trip health on
+  every page, and switches to an honest degraded-mode message the moment a real Moss call
+  fails — no polling a mock, this is wired to the same code path production traffic uses.
+- **Chaos toggle** — a one-click "🧪 Simulate outage" control in that same banner
+  (`/api/system/chaos`) that forces every Moss call in the app to fail on demand, so the
+  failover behavior is demonstrable in a live judging session or a recording without
+  needing to wait for (or hope for) a real outage. Auto-restores after 90 seconds.
+- **Bounded-latency Moss calls** — every `mossQuery` carries a hard timeout (1.2s on the
+  input guardrail, 3s elsewhere by default; see `src/lib/moss.ts`), so a slow or hanging
+  upstream can never blow a request's latency budget — it fails the caller's `try/catch`
+  and falls over to the local check instead.
+- **Automated failover tests, no secrets required** (`src/lib/guardrails.test.ts`,
+  `npm test`) — exercise the exact code path this project is leaning on for its
+  reliability story: with zero Moss/Anthropic credentials configured, `checkInput` and
+  `checkGrounding` must still correctly block known attacks, allow benign traffic, and
+  fail safe to "ungrounded" rather than fabricate a score. Run in CI on every push
+  (`.github/workflows/ci.yml`) alongside lint and a production build.
+
+### Why this exists: built during a live Moss outage
+
+On submission day, Moss's embedding-model CDN was returning 401s and its cloud query
+fallback was returning 503s — a real, full outage, not a hypothetical one. Rather than
+block on it, this project's answer was to make the failure visible and safe instead of
+hidden: the status banner reports it honestly on every page, every guardrail already had
+a tested fallback path (turns out it did — see the test suite), and the chaos toggle
+exists so that story doesn't depend on Moss recovering before a judge looks at it. This
+is, arguably, a more honest demonstration of an "Agent Reliability, Security & Evaluation"
+submission than a scripted happy path would have been.
 
 ## Tech stack
 

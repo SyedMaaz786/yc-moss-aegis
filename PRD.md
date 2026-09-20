@@ -51,6 +51,7 @@ engineered into bypassing verification.
 | Latency tracing | Per-step timing (input guardrail, retrieval, LLM generation, output guardrail) on every request, visualized as a live breakdown |
 | Evaluation harness | 16 fixed test cases (6 benign, 10 adversarial across 5 threat categories), scored on verdict correctness, grounding, and latency budget; results persisted to Moss for run-over-run tracking |
 | Live console | Chat UI with one-click attack presets, live guardrail feed, session stats, semantic trace search |
+| Reliability & observability | Live Moss health banner on every page; a chaos toggle that forces a simulated outage on demand for demoing failover; hard timeouts on every Moss call so a slow upstream can't blow the latency budget; automated tests proving the failover path works with zero credentials configured, run in CI on every push |
 | Deployment | Single Next.js app, deployable to Vercel |
 
 ## 5. Explicitly out of scope
@@ -80,7 +81,8 @@ engineered into bypassing verification.
 | Semantic threat match misses novel phrasing | Regex pre-filter catches lexically obvious cases independent of the semantic score; eval suite tracks safety accuracy over time as the threat index grows |
 | Grounding check false-positives on legitimately paraphrased answers | Threshold tuned to "weak" (warn) vs "ungrounded" (block-equivalent) rather than a single binary cutoff |
 | Native Moss SDK (N-API) compatibility on Vercel's serverless runtime | `serverExternalPackages` configured in `next.config.ts`; verified with a preview deployment before final submission |
-| Public demo cost/abuse | Per-IP rate limiting on `/api/chat` (20 req/min) |
+| Public demo cost/abuse | Per-IP rate limiting on `/api/chat` (20 req/min) and `/api/system/chaos` |
+| Moss backend itself unavailable (observed live on submission day — model CDN 401s, cloud query 503s) | Every Moss call is timeout-bounded and wrapped in try/catch with a tested local fallback (regex guardrails, fail-safe "ungrounded" grounding); the live status banner reports this honestly instead of masking it; a chaos toggle reproduces the exact failure on demand so the behavior doesn't depend on Moss's uptime at demo time |
 
 ## 8. Open questions for future iterations
 

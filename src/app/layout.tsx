@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
+        <SystemStatusBanner />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border py-4 text-center text-xs text-text-muted">
           Built on <span className="text-text-secondary">Moss</span> for the YC Fall 2026 × Moss Zero Latency Builder
