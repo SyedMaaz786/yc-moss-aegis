@@ -13,6 +13,24 @@ import { join } from "path";
  */
 const MOSS_CACHE_PATH = join(tmpdir(), "aegis-moss-cache");
 
+/**
+ * The embedding-model artifact download also failed with the same
+ * "Read-only file system" error even after passing cachePath above — that
+ * option only covers the device-id/index cache per Moss's own docs, not the
+ * model binary cache. The Rust core almost certainly resolves that location
+ * from $HOME (the standard `dirs::cache_dir()` behavior for native
+ * binaries), and Vercel's Lambda-based runtime sets HOME to a read-only
+ * path. Redirecting HOME/XDG_CACHE_HOME to /tmp is the standard fix for
+ * this exact class of bug in native/model-downloading dependencies on
+ * serverless platforms. Safe to do unconditionally: it only affects what
+ * this process's own env looks like, not the host machine.
+ */
+if (!process.env.__AEGIS_HOME_PATCHED) {
+  process.env.HOME = tmpdir();
+  process.env.XDG_CACHE_HOME = join(tmpdir(), ".cache");
+  process.env.__AEGIS_HOME_PATCHED = "1";
+}
+
 export const INDEXES = {
   knowledge: "aegis-knowledge-base",
   threats: "aegis-threat-patterns",
