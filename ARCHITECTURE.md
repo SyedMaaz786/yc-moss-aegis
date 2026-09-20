@@ -3,7 +3,7 @@
 Aegis is a single Next.js application (App Router, TypeScript) that wraps a RAG
 support agent with a real-time trust layer. There is no separate backend
 service: API routes run on the Node.js runtime and talk directly to Moss and
-Claude.
+Groq.
 
 ## Component diagram
 
@@ -26,7 +26,7 @@ flowchart TB
         Guardrails["guardrails.ts\ninput threat check\noutput grounding + PII scan"]
         Tracing["tracing.ts\nin-memory feed + Moss persistence"]
         Evaluation["evaluation.ts\nruns the fixed test suite"]
-        Claude["claude.ts\nAnthropic SDK wrapper"]
+        Llm["llm.ts\nGroq chat-completions client"]
         Moss["moss.ts\nMossClient singleton\ntimeout-bounded queries"]
         Chaos["chaos.ts\ndemo outage toggle"]
     end
@@ -38,7 +38,7 @@ flowchart TB
         EvalIdx[("aegis-eval-runs\nregression history")]
     end
 
-    Anthropic["Claude (claude-sonnet-5)"]
+    Groq["Groq (openai/gpt-oss-20b)"]
 
     UI --> Chat --> Agent
     UI --> Traces
@@ -48,7 +48,7 @@ flowchart TB
 
     Agent --> Guardrails
     Agent --> Moss
-    Agent --> Claude --> Anthropic
+    Agent --> Llm --> Groq
     Agent --> Tracing
 
     Guardrails -->|semantic threat match, 1.2s budget| Moss
@@ -71,7 +71,7 @@ sequenceDiagram
     participant API as /api/chat
     participant G as Guardrails
     participant M as Moss
-    participant C as Claude
+    participant C as Groq
     participant T as Tracing
 
     U->>API: POST { message }
@@ -104,7 +104,7 @@ sequenceDiagram
   the vector-DB round trip; putting a second service between the browser and
   the agent would just reintroduce the latency Moss is designed to eliminate.
   API routes run on Vercel's Node runtime (not Edge, since the Moss SDK is a
-  native addon) and call Moss and Claude directly.
+  native addon) and call Moss and Groq directly.
 - **Guardrails block *before* the LLM is ever called.** Prompt-injection and
   PII-exfiltration attempts are rejected by `checkInput` — a Moss query plus a
   regex pass — which is why blocked requests finish in well under 100ms

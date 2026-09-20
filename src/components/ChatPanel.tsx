@@ -68,7 +68,7 @@ export function ChatPanel({ onTrace }: { onTrace: (trace: Trace) => void }) {
         {
           id: crypto.randomUUID(),
           role: "agent",
-          text: err instanceof Error ? err.message : "Something went wrong. Is MOSS_PROJECT_ID / ANTHROPIC_API_KEY configured?",
+          text: err instanceof Error ? err.message : "Something went wrong. Is MOSS_PROJECT_ID / GROQ_API_KEY configured?",
         },
       ]);
     } finally {

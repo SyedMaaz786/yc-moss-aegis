@@ -67,7 +67,7 @@ lifecycle, and [`PRD.md`](./PRD.md) for the product spec.
   and falls over to the local check instead.
 - **Automated failover tests, no secrets required** (`src/lib/guardrails.test.ts`,
   `npm test`) — exercise the exact code path this project is leaning on for its
-  reliability story: with zero Moss/Anthropic credentials configured, `checkInput` and
+  reliability story: with zero Moss/Groq credentials configured, `checkInput` and
   `checkGrounding` must still correctly block known attacks, allow benign traffic, and
   fail safe to "ungrounded" rather than fabricate a score. Run in CI on every push
   (`.github/workflows/ci.yml`) alongside lint and a production build.
@@ -86,7 +86,7 @@ submission than a scripted happy path would have been.
 ## Tech stack
 
 Next.js 16 (App Router, TypeScript) · Tailwind CSS v4 · `@moss-dev/moss` (Node SDK) ·
-`@anthropic-ai/sdk` (Claude) · deployed on Vercel.
+Groq (`openai/gpt-oss-20b`, ~1000 tok/s) for generation · deployed on Vercel.
 
 Single full-stack app, no separate backend — Moss already removes the network hop that
 would normally justify one.
@@ -98,14 +98,14 @@ would normally justify one.
 - Node.js 20+
 - A [Moss](https://moss.dev) account (free tier) — sign up, create a project, grab
   `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY`.
-- An [Anthropic API key](https://console.anthropic.com).
+- A free [Groq API key](https://console.groq.com) (no card required).
 
 ### 2. Install & configure
 
 ```bash
 npm install
 cp .env.example .env.local
-# edit .env.local and fill in MOSS_PROJECT_ID, MOSS_PROJECT_KEY, ANTHROPIC_API_KEY
+# edit .env.local and fill in MOSS_PROJECT_ID, MOSS_PROJECT_KEY, GROQ_API_KEY
 ```
 
 ### 3. Seed the Moss indexes

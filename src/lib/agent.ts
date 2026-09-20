@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { INDEXES, mossQuery } from "./moss";
 import { checkInput, checkGrounding, scanOutputForPii } from "./guardrails";
-import { generateAnswer } from "./claude";
+import { generateAnswer } from "./llm";
 import { recordTrace } from "./tracing";
 import type { Trace, TraceStep } from "./types";
 

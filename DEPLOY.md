@@ -15,8 +15,8 @@ dashboard, or via CLI):
 ```bash
 vercel env add MOSS_PROJECT_ID production
 vercel env add MOSS_PROJECT_KEY production
-vercel env add ANTHROPIC_API_KEY production
-vercel env add ANTHROPIC_MODEL production   # optional, defaults to claude-sonnet-5
+vercel env add GROQ_API_KEY production
+vercel env add GROQ_MODEL production   # optional, defaults to llama-3.3-70b-versatile
 ```
 
 Then redeploy so the new env vars take effect:
