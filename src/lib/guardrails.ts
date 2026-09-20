@@ -32,6 +32,14 @@ const INJECTION_MARKERS: RegExp[] = [
 interface PiiPattern {
   name: string;
   re: RegExp;
+  /**
+   * "raw": needs a literal digit run (SSN/card number) — normalizing would
+   * convert digits to letters and break the match.
+   * "normalized": a phrase pattern like the injection markers — matched
+   * against obfuscation-normalized text so leetspeak/homoglyph/zero-width
+   * tricks can't bypass it either (e.g. "t3ll m3 my p4ssw0rd").
+   */
+  matchOn: "raw" | "normalized";
 }
 
 // Deliberately narrow: these match a user PASTING sensitive data into chat, or
@@ -39,12 +47,17 @@ interface PiiPattern {
 // questions. ("What's your routing number" and "how do I reset my password"
 // are both completely benign and must not trip this.)
 const PII_PATTERNS: PiiPattern[] = [
-  { name: "ssn", re: /\b\d{3}-\d{2}-\d{4}\b/ },
-  { name: "card_number", re: /\b(?:\d[ -]?){13,16}\b/ },
-  { name: "cvv_disclosure", re: /\b(tell|give|confirm|read back|repeat|show|reveal)\b.{0,40}\bcvv\b/i },
+  { name: "ssn", re: /\b\d{3}-\d{2}-\d{4}\b/, matchOn: "raw" },
+  { name: "card_number", re: /\b(?:\d[ -]?){13,16}\b/, matchOn: "raw" },
+  {
+    name: "cvv_disclosure",
+    re: /\b(tell|give|confirm|read back|repeat|show|reveal)\b.{0,40}\bcvv\b/i,
+    matchOn: "normalized",
+  },
   {
     name: "credential_disclosure",
     re: /\b(tell me|what(?:'s| is)|confirm|read back|repeat|say|reveal|give me)\b.{0,40}\b(my|the) (password|passcode|pin)\b/i,
+    matchOn: "normalized",
   },
 ];
 
@@ -62,12 +75,15 @@ export interface GuardrailResult {
 export async function checkInput(message: string): Promise<GuardrailResult> {
   const start = performance.now();
 
-  // PII patterns need real digits (SSN/card numbers), so they run against
-  // the raw message. Injection/jailbreak phrases run against a normalized
-  // form so leetspeak, full-width Unicode, and zero-width-character
-  // obfuscation can't trivially defeat the regex fallback.
-  const piiHits = PII_PATTERNS.filter((p) => p.re.test(message)).map((p) => p.name);
+  // Digit-based PII patterns (SSN/card numbers) need real digits, so they run
+  // against the raw message. Phrase-based patterns — PII-disclosure requests
+  // and the injection/jailbreak markers — run against a normalized form so
+  // leetspeak, cross-script homoglyphs, and zero-width characters can't
+  // trivially defeat the regex fallback.
   const normalizedMessage = normalizeForPhraseMatching(message);
+  const piiHits = PII_PATTERNS.filter((p) =>
+    p.re.test(p.matchOn === "raw" ? message : normalizedMessage)
+  ).map((p) => p.name);
   const regexHit = INJECTION_MARKERS.some((re) => re.test(normalizedMessage));
 
   let topScore = 0;
@@ -79,9 +95,13 @@ export async function checkInput(message: string): Promise<GuardrailResult> {
     // Tight budget: this check must never make a blocked request slower than
     // the regex fallback it's backed by. A degraded Moss backend falls
     // through to the regex-only path below well before a user would notice.
-    // Queried with the normalized text too, for the same obfuscation-
-    // resistance reason as the regex check above.
-    const result = await mossQuery(INDEXES.threats, normalizedMessage, { topK: 3, timeoutMs: 1200 });
+    // Queried with the ORIGINAL text, not the normalized one: Moss's
+    // embedding model expects natural language, and character-level
+    // leetspeak/homoglyph substitution on every message would risk
+    // degrading genuine semantic matching more than it helps — obfuscation
+    // resistance for the *semantic* layer is Moss's own problem to solve;
+    // this normalization only targets the deterministic regex fallback.
+    const result = await mossQuery(INDEXES.threats, message, { topK: 3, timeoutMs: 1200 });
     mossLatencyMs = result.timeTakenInMs;
     const top = result.docs[0];
     if (top) {
