@@ -28,7 +28,7 @@ assistant with guardrails that block prompt injection, jailbreaks, and PII
 exfiltration attempts before the LLM is ever called, a grounding check that
 verifies every answer is actually backed by retrieved policy content (not
 hallucinated), and full per-step latency tracing on every request. An
-evaluation harness runs 16 benign + adversarial test cases on demand and
+evaluation harness runs 18 benign + adversarial test cases on demand and
 scores safety accuracy, grounding, and latency budgets, persisting every run
 so regressions are visible over time.
 
@@ -41,7 +41,7 @@ one-click chaos toggle forces a simulated outage on demand so a judge can
 verify the failover themselves instead of taking a slide's word for it. As it
 happens, Moss's model CDN and cloud query API were both genuinely down for
 part of the build window — the banner reported that honestly, the fallback
-held, and 11 automated tests (`npm test`, zero credentials required, run in
+held, and 15 automated tests (`npm test`, zero credentials required, run in
 CI on every push) pin that behavior down as a regression test, not just a
 one-time demo.
 

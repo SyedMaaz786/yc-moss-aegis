@@ -26,7 +26,7 @@ ${context || "No relevant policy found for this question."}`;
 }
 
 /**
- * Runs one full protected turn: input guardrail -> Moss retrieval -> Claude
+ * Runs one full protected turn: input guardrail -> Moss retrieval -> Groq
  * generation -> output guardrail (grounding + PII scan). Every step is timed
  * and recorded into a Trace, whether or not the turn was blocked.
  */

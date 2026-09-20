@@ -1,4 +1,5 @@
 import { INDEXES, mossQuery } from "./moss";
+import { normalizeForPhraseMatching } from "./normalize";
 import type { GroundingVerdict, RetrievedDoc } from "./types";
 
 /** Semantic similarity score (0-1) against the threat-patterns index above which a message is blocked outright. */
@@ -61,8 +62,13 @@ export interface GuardrailResult {
 export async function checkInput(message: string): Promise<GuardrailResult> {
   const start = performance.now();
 
+  // PII patterns need real digits (SSN/card numbers), so they run against
+  // the raw message. Injection/jailbreak phrases run against a normalized
+  // form so leetspeak, full-width Unicode, and zero-width-character
+  // obfuscation can't trivially defeat the regex fallback.
   const piiHits = PII_PATTERNS.filter((p) => p.re.test(message)).map((p) => p.name);
-  const regexHit = INJECTION_MARKERS.some((re) => re.test(message));
+  const normalizedMessage = normalizeForPhraseMatching(message);
+  const regexHit = INJECTION_MARKERS.some((re) => re.test(normalizedMessage));
 
   let topScore = 0;
   let topText: string | undefined;
@@ -73,7 +79,9 @@ export async function checkInput(message: string): Promise<GuardrailResult> {
     // Tight budget: this check must never make a blocked request slower than
     // the regex fallback it's backed by. A degraded Moss backend falls
     // through to the regex-only path below well before a user would notice.
-    const result = await mossQuery(INDEXES.threats, message, { topK: 3, timeoutMs: 1200 });
+    // Queried with the normalized text too, for the same obfuscation-
+    // resistance reason as the regex check above.
+    const result = await mossQuery(INDEXES.threats, normalizedMessage, { topK: 3, timeoutMs: 1200 });
     mossLatencyMs = result.timeTakenInMs;
     const top = result.docs[0];
     if (top) {

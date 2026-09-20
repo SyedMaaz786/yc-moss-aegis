@@ -49,7 +49,7 @@ engineered into bypassing verification.
 | Input guardrails | Semantic threat matching (Moss) + regex pre-filter; blocks prompt injection, jailbreaks, PII-exfiltration requests, unauthorized-action requests, social engineering |
 | Output guardrails | Grounding/faithfulness check via re-retrieval; PII regex scan on generated output; safe fallback response on block |
 | Latency tracing | Per-step timing (input guardrail, retrieval, LLM generation, output guardrail) on every request, visualized as a live breakdown |
-| Evaluation harness | 16 fixed test cases (6 benign, 10 adversarial across 5 threat categories), scored on verdict correctness, grounding, and latency budget; results persisted to Moss for run-over-run tracking |
+| Evaluation harness | 18 fixed test cases (6 benign, 12 adversarial across 6 threat categories, including Unicode/leetspeak-obfuscated injection), scored on verdict correctness, grounding, and latency budget; results persisted to Moss for run-over-run tracking |
 | Live console | Chat UI with one-click attack presets, live guardrail feed, session stats, semantic trace search |
 | Reliability & observability | Live Moss health banner on every page; a chaos toggle that forces a simulated outage on demand for demoing failover; hard timeouts on every Moss call so a slow upstream can't blow the latency budget; automated tests proving the failover path works with zero credentials configured, run in CI on every push |
 | Deployment | Single Next.js app, deployable to Vercel |

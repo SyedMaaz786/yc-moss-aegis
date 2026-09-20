@@ -37,22 +37,24 @@ need to be fast enough to run on every single turn:
    living in a single ephemeral report.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full component diagram and request
-lifecycle, and [`PRD.md`](./PRD.md) for the product spec.
+lifecycle, [`PRD.md`](./PRD.md) for the product spec, and [`THREAT_MODEL.md`](./THREAT_MODEL.md)
+for the adversaries/assets/controls this build is actually defending against.
 
 ## What's in the box
 
 - **Live Trust Console** (`/`) — chat with the protected agent, or click a preset attack
   (prompt injection, jailbreak, PII exfiltration, unauthorized transfer) to watch it get
   blocked in real time. A live feed shows every request's verdict, latency breakdown
-  (input guardrail → Moss retrieval → Claude generation → output guardrail), and
+  (input guardrail → Moss retrieval → Groq generation → output guardrail), and
   grounding score. A trace-search box lets you semantically query request history.
-- **Evaluation harness** (`/eval`) — runs 16 fixed test cases (benign + adversarial)
-  through the full pipeline, scores safety accuracy, average grounding, and p95 latency,
-  and persists every run to Moss so you can track regressions across runs.
+- **Evaluation harness** (`/eval`) — runs 18 fixed test cases (benign + adversarial, including
+  Unicode/leetspeak-obfuscated injection attempts) through the full pipeline, scores safety
+  accuracy, average grounding, and p95 latency, and persists every run to Moss so you can
+  track regressions across runs.
 - **Guardrail engine** (`src/lib/guardrails.ts`) — semantic threat matching + regex
   pre-filter for input, re-retrieval grounding + PII regex scan for output.
 - **Agent pipeline** (`src/lib/agent.ts`) — orchestrates input guardrail → Moss retrieval
-  → Claude generation → output guardrail, with per-step timing on every turn.
+  → Groq generation → output guardrail, with per-step timing on every turn.
 - **Live reliability status banner** — a persistent bar (`/api/system/health`,
   `src/components/SystemStatusBanner.tsx`) that reports Moss's actual round-trip health on
   every page, and switches to an honest degraded-mode message the moment a real Moss call

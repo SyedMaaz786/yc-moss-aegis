@@ -82,7 +82,7 @@ export default function EvalPage() {
       ) : (
         <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-text-muted">
           No run yet this session. Click &ldquo;Run evaluation suite&rdquo; to score the agent against{" "}
-          {history.length ? "the fixed test suite" : "16 benign + adversarial test cases"}.
+          {history.length ? "the fixed test suite" : "18 benign + adversarial test cases"}.
         </div>
       )}
 
