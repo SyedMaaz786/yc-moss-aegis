@@ -1,5 +1,17 @@
 import { MossClient, type SearchResult, type QueryOptions } from "@moss-dev/moss";
 import { isChaosMossDown } from "./chaos";
+import { tmpdir } from "os";
+import { join } from "path";
+
+/**
+ * Vercel's serverless filesystem is read-only outside /tmp. Moss's client
+ * writes a stable device-id file (and index cache) under a cachePath that
+ * defaults to somewhere in the working directory / home dir, which fails
+ * there with "Read-only file system" — a separate bug from Moss's own
+ * uptime, seen on this project's first production deploy. os.tmpdir() is
+ * writable on every platform this runs on (Vercel, local dev, CI).
+ */
+const MOSS_CACHE_PATH = join(tmpdir(), "aegis-moss-cache");
 
 export const INDEXES = {
   knowledge: "aegis-knowledge-base",
@@ -35,7 +47,7 @@ export function getMossClient(): MossClient {
   }
   if (!globalThis.__aegisMossClient) {
     const { projectId, projectKey } = credentials();
-    globalThis.__aegisMossClient = new MossClient(projectId, projectKey);
+    globalThis.__aegisMossClient = new MossClient(projectId, projectKey, { cachePath: MOSS_CACHE_PATH });
   }
   return globalThis.__aegisMossClient;
 }
