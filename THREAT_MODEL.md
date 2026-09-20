@@ -30,10 +30,12 @@ scoped to what this build actually defends against and what it explicitly doesn'
 ## Controls in place, mapped to adversaries
 
 - **Input guardrail** (`guardrails.ts::checkInput`) — semantic match against a Moss
-  threat-pattern index (catches paraphrased/novel attacks) plus a regex pre-filter (catches
-  the lexically obvious cases in ~0ms, independent of Moss). Both run against text
-  normalized for Unicode/leetspeak obfuscation (`normalize.ts`) — see "Obfuscating
-  attacker" above.
+  threat-pattern index (catches paraphrased/novel attacks, queried with the original text —
+  Moss's embedding model handles minor variation on its own and character-mangling every
+  message would risk hurting genuine semantic matches) plus a regex pre-filter (catches the
+  lexically obvious cases in ~0ms, independent of Moss, run against text normalized for
+  Unicode/leetspeak/homoglyph obfuscation via `normalize.ts`). Obfuscation resistance is
+  specifically a regex-fallback concern — see "Obfuscating attacker" above.
 - **PII request detection** — narrow, intent-scoped regexes that catch a user *pasting* an
   SSN/card number or *asking the agent to disclose/confirm* a password/PIN/CVV, without
   false-positiving on routine questions ("what's your routing number").
