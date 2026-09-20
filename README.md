@@ -9,7 +9,7 @@ before it reaches the user, and every step is timed and traced live. A built-in
 evaluation harness scores the whole pipeline against a fixed adversarial + benign test
 suite on demand.
 
-**Live demo:** _(added after deployment — see below)_
+**Live demo:** https://yc-moss-aegis.vercel.app
 **Video walkthrough:** _(added before submission)_
 
 ## Why this, and why Moss

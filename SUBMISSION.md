@@ -11,7 +11,7 @@ Aegis
 https://github.com/SyedMaaz786/yc-moss-aegis
 
 ## Live Demo URL
-[fill in after Vercel deploy]
+https://yc-moss-aegis.vercel.app
 
 ## Video Demo URL (optional but strongly recommended)
 [record a 2-min screen capture: open the live console, click through the 4
