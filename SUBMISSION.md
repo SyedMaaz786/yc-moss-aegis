@@ -1,8 +1,21 @@
 # Aegis submission packet
 
-Use these fields in the HiDevs submission form. The screenshots contain conflicting
-submission dates; the participant subsequently confirmed time until September 23.
-Check the current deadline displayed by the portal before final submission.
+Use these fields in the HiDevs submission form.
+
+## Updated organizer timeline
+
+The newer organizer announcement supplied by the participant supersedes the dates
+in the original event screenshots. All times below are Indian Standard Time (IST).
+
+- **Submission deadline: September 23, 2026, 12:00 PM IST (noon).**
+- Finalists / results: September 24, 2026, 10:00 PM IST.
+- Grand finale: September 27, 2026; the announcement does not specify a time.
+- The announcement offers 100K Gemini tokens per participant, with distribution
+  scheduled for September 21, 2026, 12:00 PM IST.
+
+Participant Gemini access is an optional additional resource. Its service endpoint,
+model, and setup instructions must be identified before integration. The verified
+application currently uses Groq for generation and Moss for retrieval.
 
 ## Project / Agent Name
 
