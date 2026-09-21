@@ -29,8 +29,25 @@ const nextConfig: NextConfig = {
   // the server bundle so Next.js loads it from node_modules at runtime instead
   // of trying to webpack/turbopack it.
   serverExternalPackages: ["@moss-dev/moss", "@moss-dev/moss-core", "@huggingface/transformers", "onnxruntime-node"],
-  outputFileTracingIncludes: { '/api/*': ['./models/**/*', './node_modules/onnxruntime-node/dist/**/*', './node_modules/onnxruntime-node/package.json', './node_modules/onnxruntime-node/node_modules/**/*', `./node_modules/onnxruntime-node/bin/napi-*/${process.platform}/${process.arch}/**/*`] },
-  outputFileTracingExcludes: { '/api/*': ['./node_modules/onnxruntime-node/bin/napi-*/darwin/**/*', './node_modules/onnxruntime-node/bin/napi-*/linux/arm64/**/*'] },
+  outputFileTracingIncludes: { '/api/*': [
+    './models/**/*',
+    './node_modules/onnxruntime-node/dist/**/*',
+    './node_modules/onnxruntime-common/dist/**/*',
+    './node_modules/onnxruntime-node/package.json',
+    './node_modules/onnxruntime-node/node_modules/**/*',
+    `./node_modules/onnxruntime-node/bin/napi-*/${process.platform}/${process.arch}/**/*`,
+    `./node_modules/@img/sharp-${process.platform}-${process.arch}/**/*`,
+    `./node_modules/@img/sharp-libvips-${process.platform}-${process.arch}/**/*`,
+  ] },
+  outputFileTracingExcludes: { '/api/*': [
+    // CPU execution never needs CUDA/TensorRT or another platform's binaries.
+    './node_modules/onnxruntime-node/bin/**/*providers_cuda*',
+    './node_modules/onnxruntime-node/bin/**/*providers_tensorrt*',
+    ...['darwin', 'linux', 'win32'].filter(platform => platform !== process.platform)
+      .map(platform => `./node_modules/onnxruntime-node/bin/napi-*/${platform}/**/*`),
+    ...['x64', 'arm64'].filter(arch => arch !== process.arch)
+      .map(arch => `./node_modules/onnxruntime-node/bin/napi-*/${process.platform}/${arch}/**/*`),
+  ] },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

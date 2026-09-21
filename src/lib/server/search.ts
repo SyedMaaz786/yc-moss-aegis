@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { searchTraces } from '@/lib/tracing';
 import { sessionId, sessionResponse, readJson, clientIp } from '@/lib/http';
 import { isRateLimited } from '@/lib/rateLimit';
-export const runtime = 'nodejs';
 const schema = z.object({ query: z.string().trim().min(1).max(300) });
 export async function POST(req: NextRequest) {
   if (isRateLimited('search:' + clientIp(req), 10)) return NextResponse.json({ error: 'Please wait before searching again.' }, { status: 429 });

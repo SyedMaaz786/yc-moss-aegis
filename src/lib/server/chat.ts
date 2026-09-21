@@ -4,8 +4,6 @@ import { runAgentTurn } from '@/lib/agent';
 import { recordTrace } from '@/lib/tracing';
 import { isRateLimited } from '@/lib/rateLimit';
 import { sessionId, sessionResponse, clientIp, readJson } from '@/lib/http';
-export const runtime = 'nodejs';
-export const maxDuration = 60;
 const schema = z.object({ message: z.string().trim().min(1).max(1000), scenario: z.enum(['live', 'outage', 'poisoned-context', 'fabricated-answer']).default('live') });
 export async function POST(req: NextRequest) {
   if (isRateLimited('chat:' + clientIp(req))) return NextResponse.json({ error: 'Please wait a minute before trying again.' }, { status: 429 });

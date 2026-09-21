@@ -22,6 +22,12 @@ Use Node 22 or later and npm ci. next.config.ts externalizes native dependencies
 traces the MiniLM files plus the Linux ONNX runtime. Models are included in the repository,
 so deployment has no model-download build step. No persistent filesystem is required.
 
+The API uses one catch-all Next.js route with explicit path/method dispatch. This keeps
+the app within the existing hosting plan's function limit and lets the endpoints share
+a warm encoder and temporary trace memory. Different instances still have separate memory.
+The Vercel install command skips optional GPU downloads; the app uses the bundled CPU
+runtime. CI verifies the actual standalone encoder without credentials or model downloads.
+
 Run npm run build, then npm start locally to test a production build.
 For an authenticated manual deployment, run vercel --prod from this directory.
 Do not create a second project; this directory is already linked.

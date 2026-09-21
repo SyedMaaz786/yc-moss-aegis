@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runEvalSuite } from '@/lib/evaluation';
 import { isRateLimited } from '@/lib/rateLimit';
 import { clientIp, isSameOrigin } from '@/lib/http';
-export const runtime = 'nodejs';
-export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) return NextResponse.json({ error: 'Cross-origin request rejected.' }, { status: 403 });
   if (isRateLimited('eval:' + clientIp(req), 2)) return NextResponse.json({ error: 'Two evaluation runs per minute are available. Please wait.' }, { status: 429 });

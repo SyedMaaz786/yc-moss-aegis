@@ -6,7 +6,7 @@ test('release gates, source evidence, exports, accessibility and mobile layout',
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Trust every turn/ })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('MOSS ONLINE');
-  await page.screenshot({ path: 'public/submission/console.png', fullPage: true });
+  await page.screenshot({ path: 'artifacts/console.png', fullPage: true });
 
   async function scenario(name: RegExp, outcome: string) {
     const response = page.waitForResponse(r => r.url().endsWith('/api/chat') && r.request().method() === 'POST');
@@ -52,11 +52,13 @@ test('streaming evaluation completes with honest scores', async ({ page }) => {
   await page.getByRole('button', { name: 'Run evaluation suite' }).click();
   await expect(page.getByText('32/32', { exact: true })).toBeVisible({ timeout: 100000 });
   await expect(page.getByRole('button', { name: /Export full report/ })).toBeVisible();
-  await page.screenshot({ path: 'public/submission/evaluation.png', fullPage: true });
+  await page.screenshot({ path: 'artifacts/evaluation.png', fullPage: true });
 });
 test('API validates input, redacts identifiers, and isolates visitors', async ({ playwright, baseURL }) => {
   const a = await playwright.request.newContext({ baseURL });
   const b = await playwright.request.newContext({ baseURL });
+  expect((await a.get('/api/does-not-exist')).status()).toBe(404);
+  expect((await a.get('/api/chat')).status()).toBe(405);
   expect((await a.post('/api/chat', { data: { message: ' ' } })).status()).toBe(400);
   expect((await a.post('/api/chat', { data: { message: 'a'.repeat(9000) } })).status()).toBe(400);
   expect((await a.post('/api/chat', { data: { message: 'test', scenario: 'unknown' } })).status()).toBe(400);

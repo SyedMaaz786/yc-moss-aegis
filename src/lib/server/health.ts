@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { mossQuery, INDEXES } from '@/lib/moss';
-export const runtime = 'nodejs';
-export const maxDuration = 60;
 let cached: { data: object; expires: number } | undefined;
 export async function GET() {
   if (cached && cached.expires > Date.now()) return NextResponse.json(cached.data, { headers: { 'Cache-Control': 'no-store' } });

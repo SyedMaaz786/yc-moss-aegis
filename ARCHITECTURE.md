@@ -45,6 +45,8 @@ not a cross-user or durable log search.
 ## Deployment boundary
 
 One Next.js Node application on Vercel; native Moss and ONNX packages are externalized.
+API URLs dispatch through one catch-all function so a warm instance shares its encoder,
+Moss sessions, rate counters, and visitor-scoped trace memory across endpoints.
 The deployment traces explicitly include the bundled model and Linux ONNX runtime.
 The browser receives no API keys. Groq is the only required external generation call
 on the warm answer path. Moss credentials remain server-side.
