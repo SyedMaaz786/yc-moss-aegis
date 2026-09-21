@@ -11,7 +11,7 @@ const nodes=[
 [65,'01  Input guardrail',['Unicode normalization','Sensitive-data patterns','Moss threat retrieval']],
 [330,'02  Policy retrieval',['Bundled MiniLM vectors','Moss native session','Top policy candidates']],
 [595,'03  Source integrity',['Versioned policy corpus','SHA-256 source match','Quarantine altered text']],
-[860,'04  Candidate answer',['Groq generation','Trusted policy context','Never streamed to user']],
+[860,'04  Candidate answer',['Groq / HiDevs backup','Trusted policy context','Never streamed to user']],
 [1125,'05  Release gate',['PII scan + numeric check','Moss source re-retrieval','Withhold failed output']],
 ];
 for (const [i,[x,title,lines]] of nodes.entries()) {

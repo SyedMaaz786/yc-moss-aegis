@@ -21,7 +21,8 @@ move funds, fetch real customer records, or modify an account.
 | PII in trace | Redaction before retention; no external raw-prompt trace ingestion | Redaction is not a full DLP system |
 | Cross-user trace access | Session cookie partition and scoped search | No authenticated multi-tenant accounts |
 | Global demo disruption | Simulations scoped to one request | Shared compute still has finite capacity |
-| Provider outage | Bounded waiting and explicit unavailable outcome | Native operations may continue after caller timeout |
+| Provider outage | One optional generation backup, bounded waiting, explicit unavailable outcome if both fail | Backup can also fail; native retrieval operations may continue after caller timeout |
+| Credential leakage | Keys remain server-side; fixed provider URLs; redirects rejected; API-key patterns blocked/redacted | Pattern-based detection is not comprehensive secret classification |
 | Eval overclaim | Separate safety/usefulness criteria and explicit missing evidence failures | Public suite is small and used during development |
 | Cost abuse | Body limits and separate per-instance rate limits | Requires distributed controls for production scale |
 
@@ -34,6 +35,12 @@ Evaluation history uses browser localStorage and contains only the fixed public 
 
 No rejected candidate answer is persisted. Diagnostic API errors are generic.
 Credentials remain in server environment variables and are ignored by Git.
+
+The configured generation provider receives the fictional policy context and user
+question after input/context gates pass. When backup generation is enabled, the second
+provider receives that same content after a primary generation failure. Error bodies
+are discarded; receipts contain only provider identity, timing, status codes, and
+reported usage. Rejected output never triggers another provider attempt.
 
 ## Tested failure cases
 

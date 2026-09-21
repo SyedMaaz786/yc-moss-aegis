@@ -11,8 +11,9 @@
    against the Moss threat session.
 3. Query the Moss policy session using the same bundled encoder used for its documents.
 4. Compare every retrieved document ID and SHA-256 text digest with the trusted manifest.
-5. Generate a candidate with Groq from the trusted source context. The candidate is not
-   streamed to the user.
+5. Generate a candidate with Groq from trusted source context. If generation fails,
+   an optional HiDevs Gemini backup gets one bounded attempt. Both paths feed the same
+   output gate. Provider errors are sanitized and incomplete candidates are rejected.
 6. Scan for PII and unsupported numeric claims; re-retrieve sources with the candidate
    through Moss. Insufficient overlap or any failed check withholds the candidate.
 7. Return the released answer or explicit refusal, plus redacted structured evidence.
@@ -48,11 +49,13 @@ One Next.js Node application on Vercel; native Moss and ONNX packages are extern
 API URLs dispatch through one catch-all function so a warm instance shares its encoder,
 Moss sessions, rate counters, and visitor-scoped trace memory across endpoints.
 The deployment traces explicitly include the bundled model and Linux ONNX runtime.
-The browser receives no API keys. Groq is the only required external generation call
-on the warm answer path. Moss credentials remain server-side.
+The browser receives no API keys. Generation uses Groq by default; a configured HiDevs
+Gemini backup can receive the same fictional policy and user question after a primary
+generation failure. No alternate model is called after a release-gate rejection.
 
 Secrets: `MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY`, `GROQ_API_KEY`.
-Optional: `GROQ_MODEL`, `MOSS_RETRIEVAL_MODE`.
+Optional: `HIDEVS_API_KEY`, `GROQ_MODEL`, `HIDEVS_MODEL`, `LLM_PROVIDER`,
+`LLM_FALLBACK_PROVIDER`, `MOSS_RETRIEVAL_MODE`.
 
 ## Failure behavior
 
@@ -61,7 +64,7 @@ Optional: `GROQ_MODEL`, `MOSS_RETRIEVAL_MODE`.
 | Local attack match | Stop before retrieval and generation |
 | Retrieval unavailable or irrelevant | Decline; outcome unavailable |
 | Altered/unknown policy source | Quarantine; never call generation |
-| Generation error/timeout | Decline; outcome unavailable |
+| Generation error/timeout | Try one configured backup; if both fail, outcome unavailable |
 | PII, unsupported amount, weak grounding | Withhold candidate; output blocked |
 | Session memory lost | Empty history; existing browser view/exports remain |
 | Interrupted eval stream | Partial progress only, no completed score |

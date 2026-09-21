@@ -13,9 +13,10 @@ in the original event screenshots. All times below are Indian Standard Time (IST
 - The announcement offers 100K Gemini tokens per participant, with distribution
   scheduled for September 21, 2026, 12:00 PM IST.
 
-Participant Gemini access is an optional additional resource. Its service endpoint,
-model, and setup instructions must be identified before integration. The verified
-application currently uses Groq for generation and Moss for retrieval.
+Participant Gemini access uses the HiDevs virtual-key gateway at
+https://llm.hidevs.xyz/v1/chat/completions. Aegis supports gemini-3.5-flash-lite as an
+optional generation backup. Groq remains primary based on the published same-suite
+comparison. Moss continues to provide retrieval on both generation paths.
 
 ## Project / Agent Name
 
@@ -54,6 +55,10 @@ released answers with trusted sources and passing grounding checks. The recorded
 zero benign input false positives, and 545 ms p95 total latency on the development
 machine. Judges can rerun the suite live. The suite is not an independent security
 benchmark, and the threat model openly documents the limits of heuristic checks.
+
+The Evidence page also publishes a same-suite Groq/Gemini comparison, including a
+failed Gemini request, and a controlled failover receipt using a real Gemini answer.
+Backup generation shares every release gate, and receipts show which model was used.
 
 ## How did you use Moss in your retrieval layer?
 

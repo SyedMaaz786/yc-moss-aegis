@@ -52,8 +52,13 @@ move funds, fetch real customer records, or modify an account.</p>
 </tr>
 <tr>
 <td>Provider outage</td>
-<td>Bounded waiting and explicit unavailable outcome</td>
-<td>Native operations may continue after caller timeout</td>
+<td>One optional generation backup, bounded waiting, explicit unavailable outcome if both fail</td>
+<td>Backup can also fail; native retrieval operations may continue after caller timeout</td>
+</tr>
+<tr>
+<td>Credential leakage</td>
+<td>Keys remain server-side; fixed provider URLs; redirects rejected; API-key patterns blocked/redacted</td>
+<td>Pattern-based detection is not comprehensive secret classification</td>
 </tr>
 <tr>
 <td>Eval overclaim</td>
@@ -73,6 +78,11 @@ one hour. Memory can disappear on cold starts. Exports are user-controlled copie
 Evaluation history uses browser localStorage and contains only the fixed public cases.</p>
 <p>No rejected candidate answer is persisted. Diagnostic API errors are generic.
 Credentials remain in server environment variables and are ignored by Git.</p>
+<p>The configured generation provider receives the fictional policy context and user
+question after input/context gates pass. When backup generation is enabled, the second
+provider receives that same content after a primary generation failure. Error bodies
+are discarded; receipts contain only provider identity, timing, status codes, and
+reported usage. Rejected output never triggers another provider attempt.</p>
 <h2>Tested failure cases</h2>
 <p>Unit coverage includes ungrounded output withholding, numerical hallucination despite
 high similarity, source-ID forgery, failed generation, isolated outage simulation,

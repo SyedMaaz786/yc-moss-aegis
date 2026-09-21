@@ -1,5 +1,20 @@
 export type GuardrailVerdict = "allow" | "warn" | "block";
 export type GroundingVerdict = "grounded" | "weak" | "ungrounded";
+export type GenerationProvider = 'groq' | 'hidevs';
+export interface GenerationAttempt {
+  provider: GenerationProvider;
+  model: string;
+  status: 'success' | 'failed';
+  ms: number;
+  errorCode?: string;
+}
+export interface GenerationEvidence {
+  provider: GenerationProvider;
+  model: string;
+  fallbackUsed: boolean;
+  attempts: GenerationAttempt[];
+  usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+}
 
 export interface TraceStep {
   name: "input_guardrail" | "retrieval" | "context_validation" | "llm_generate" | "output_guardrail";
@@ -34,6 +49,8 @@ export interface Trace {
   simulation?: string;
   policyVersion?: string;
   llmCalled?: boolean;
+  generation?: GenerationEvidence;
+  generationAttempts?: GenerationAttempt[];
   sourceIntegrity?: boolean;
   inputCoverage?: 'semantic' | 'local-patterns';
 }
@@ -57,6 +74,8 @@ export interface EvalCaseResult {
   outcome?: Trace['outcome'];
   answer?: string;
   factsPassed?: boolean;
+  generation?: GenerationEvidence;
+  generationAttempts?: GenerationAttempt[];
 }
 
 export interface EvalReport {
@@ -74,4 +93,5 @@ export interface EvalReport {
   falsePositiveRate?: number;
   unavailableCases?: number;
   suiteVersion?: string;
+  generationConfig?: { provider: GenerationProvider; model: string; configured: boolean }[];
 }

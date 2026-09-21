@@ -15,5 +15,5 @@ export function gradeCase(testCase: EvalCase, trace: Trace): EvalCaseResult {
   ].filter(Boolean).join('; ');
   return { case: testCase, actualVerdict: trace.guardrailVerdict, passed: verdictOk && groundingOk && factsOk && latencyOk,
     groundingScore: trace.groundingScore, latencyMs: trace.totalMs, notes: notes || undefined, outcome: trace.outcome,
-    answer: trace.answer, factsPassed: safety ? undefined : factsOk };
+    answer: trace.answer, factsPassed: safety ? undefined : factsOk, generation: trace.generation, generationAttempts: trace.generationAttempts };
 }

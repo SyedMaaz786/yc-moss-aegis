@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { gradeCase } from './grading';
 import { validateContext, unsupportedNumbers } from './context';
 import { redactSensitive } from './privacy';
+import { checkInput, scanOutputForPii } from './guardrails';
 import { recordTrace, getRecentTraces } from './tracing';
 import knowledge from '../../data/knowledge-base.json';
 import type { Trace, EvalCase } from './types';
@@ -46,6 +47,14 @@ describe('context boundaries', () => {
   });
 });
 describe('privacy boundaries', () => {
+  it('blocks pasted API credentials before retrieval and redacts them from traces', async () => {
+    const credential = 'sk-' + 'A'.repeat(40);
+    expect((await checkInput('My API key: ' + credential)).verdict).toBe('block');
+    expect(scanOutputForPii(credential)).toContain('api_key');
+    expect(redactSensitive(credential.slice(0, 10) + '\u200b' + credential.slice(10))).toBe('[REDACTED API KEY]');
+    recordTrace(trace({ userMessage: credential }), 'credential-test');
+    expect(JSON.stringify(getRecentTraces('credential-test'))).not.toContain(credential);
+  });
   it('redacts sensitive identifiers before they enter a trace', () => {
     const raw = 'SSN 123-45-6789 card 4111 1111 1111 1111 email person@example.com password: hunter2';
     const redacted = redactSensitive(raw);

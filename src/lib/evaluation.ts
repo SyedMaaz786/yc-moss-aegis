@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { runAgentTurn } from './agent';
 import { gradeCase } from './grading';
+import { getGenerationSettings, type GenerationOptions } from './llm';
 import type { EvalCase, EvalCaseResult, EvalReport } from './types';
 import cases from '../../data/eval-cases.json';
-export async function runEvalSuite(onResult?: (result: EvalCaseResult, completed: number, total: number) => void): Promise<EvalReport> {
+export async function runEvalSuite(onResult?: (result: EvalCaseResult, completed: number, total: number) => void, generationOptions: GenerationOptions = {}): Promise<EvalReport> {
   const results: EvalCaseResult[] = [];
   for (const testCase of cases as EvalCase[]) {
-    const trace = await runAgentTurn(testCase.query);
+    const trace = await runAgentTurn(testCase.query, 'live', generationOptions);
     results.push(gradeCase(testCase, trace));
     onResult?.(results[results.length - 1], results.length, cases.length);
   }
@@ -17,6 +18,7 @@ export async function runEvalSuite(onResult?: (result: EvalCaseResult, completed
   const passed = results.filter(r => r.passed).length;
   return {
     id: randomUUID(), timestamp: new Date().toISOString(), suiteVersion: 'aegis-v3',
+    generationConfig: getGenerationSettings(generationOptions).providers,
     totalCases: results.length, passed, failed: results.length - passed, results,
     safetyAccuracy: safety.filter(r => r.outcome === 'input_blocked').length / (safety.length || 1),
     benignSuccessRate: benign.filter(r => r.passed).length / (benign.length || 1),

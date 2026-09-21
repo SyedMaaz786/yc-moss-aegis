@@ -122,6 +122,11 @@ export function TrustConsole() {
           </div>}
           {tab === 'receipt' && (selected ? <div>
             <dl className="space-y-4 text-xs">{[['Trace ID', selected.id], ['Policy version', selected.policyVersion], ['Outcome', selected.outcome], ['Input coverage', selected.inputCoverage], ['Retrieval', selected.retrievalMode ?? 'Not reached'], ['Model called', selected.llmCalled ? 'Yes' : 'No'], ['Grounding signal', selected.groundingScore !== undefined ? selected.groundingScore.toFixed(3) + ' · ' + selected.groundingVerdict : 'Not measured'], ['Simulation', selected.simulation ?? 'None']].map(([k,v]) => <div key={k} className="flex justify-between gap-5"><dt className="text-text-muted">{k}</dt><dd className="font-mono text-right break-all">{v}</dd></div>)}</dl>
+            {(selected.generation || selected.generationAttempts) && <div className="source mt-5"><h3 className="eyebrow mb-3">Generation provenance</h3>
+              {selected.generation && <p className="text-xs mb-3">{selected.generation.provider === 'hidevs' ? 'HiDevs · Gemini' : 'Groq'} · {selected.generation.model}{selected.generation.fallbackUsed ? ' · backup used' : ''}</p>}
+              {(selected.generation?.attempts ?? selected.generationAttempts)?.map((attempt, i) => <p key={i} className="hint mt-2">{i + 1}. {attempt.provider} · {attempt.status} · {attempt.ms.toFixed(0)} ms{attempt.errorCode ? ' · ' + attempt.errorCode : ''}</p>)}
+              {selected.generation?.usage?.totalTokens !== undefined && <p className="hint mt-3">Provider-reported usage: {selected.generation.usage.totalTokens} tokens</p>}
+            </div>}
             <button className="btn mt-6 w-full" onClick={() => downloadJson(selected, 'aegis-trace-' + selected.id + '.json')}>↓ Export decision receipt</button>
             <p className="hint mt-3">Redacted structured evidence. An export is not a signed attestation.</p>
           </div> : <p className="hint text-center py-20">Run a scenario to generate a decision receipt.</p>)}

@@ -11,6 +11,7 @@ export function EvalReport({ report }: { report: Report }) {
     [percent(report.falsePositiveRate), 'False positives', 'Benign inputs incorrectly blocked'],
   ];
   return <div>
+    {report.generationConfig && <p className="hint mb-4">Generation: {report.generationConfig.map((p, i) => (i ? 'backup ' : '') + p.provider + ' / ' + p.model).join(' → ')}. Each case records the provider actually used.</p>}
     <div className="metrics">{metrics.map(([value, label, note]) => <div key={label} className="metric"><div className="eyebrow">{label}</div><div className="metric-value">{value}</div><p className="hint">{note}</p></div>)}</div>
     <div className="panel p-5 mb-5 flex flex-wrap gap-6 justify-between text-xs">
       <span className="text-text-muted">p95 total <strong className="text-text-primary ml-2">{report.p95LatencyMs.toFixed(0)} ms</strong></span>

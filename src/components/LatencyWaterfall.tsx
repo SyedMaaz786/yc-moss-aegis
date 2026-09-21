@@ -3,7 +3,7 @@ import type { TraceStep } from "@/lib/types";
 const STEP_META: Record<string, { label: string; color: string }> = {
   input_guardrail: { label: "Input guardrail", color: "var(--series-1)" },
   retrieval: { label: "Moss retrieval", color: "var(--series-2)" },
-  llm_generate: { label: "Groq generate", color: "var(--series-3)" },
+  llm_generate: { label: "Generate candidate", color: "var(--series-3)" },
   output_guardrail: { label: "Output guardrail", color: "var(--series-4)" },
 };
 

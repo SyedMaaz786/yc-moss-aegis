@@ -16,5 +16,7 @@ for (const name of ['PRD', 'THREAT_MODEL']) {
 await page.setContent('<style>@page{size:landscape;margin:0}body{margin:0}</style>'+readFileSync('public/submission/architecture.svg','utf8'));
 await page.pdf({ path:'public/submission/architecture.pdf', width:'1440px', height:'1050px', printBackground:true });
 copyFileSync('artifacts/evaluation.json','public/submission/evaluation.json');
+copyFileSync('artifacts/provider-comparison.json','public/submission/provider-comparison.json');
+copyFileSync('artifacts/failover.json','public/submission/failover.json');
 await browser.close();
 console.log('PDFs and published evaluation prepared.');

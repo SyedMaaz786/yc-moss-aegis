@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { INDEXES, mossQuery } from './moss';
 import { checkInput, checkGrounding, scanOutputForPii } from './guardrails';
-import { generateAnswer } from './llm';
+import { generateCandidate, GenerationUnavailableError, type GenerationOptions } from './llm';
 import { redactSensitive } from './privacy';
 import { POLICY_VERSION, validateContext, unsupportedNumbers } from './context';
-import type { Trace, TraceStep } from './types';
+import type { GenerationEvidence, Trace, TraceStep } from './types';
 export type Scenario = 'live' | 'outage' | 'poisoned-context' | 'fabricated-answer';
 const REFUSAL = "I can't safely answer that request. Please contact a verified human banker using the number on the back of your card.";
 function systemPrompt(context: string) {
@@ -17,7 +17,7 @@ function systemPrompt(context: string) {
     'Preserve exact numeric digits for policy amounts. Policy sources:', context,
   ].join('\n');
 }
-export async function runAgentTurn(userMessage: string, scenario: Scenario = 'live'): Promise<Trace> {
+export async function runAgentTurn(userMessage: string, scenario: Scenario = 'live', generationOptions: GenerationOptions = {}): Promise<Trace> {
   const started = performance.now();
   const steps: TraceStep[] = [];
   const base = {
@@ -74,21 +74,25 @@ export async function runAgentTurn(userMessage: string, scenario: Scenario = 'li
   });
   const llmStart = performance.now();
   let answer: string;
+  let generation: GenerationEvidence | undefined;
   try {
     if (scenario === 'fabricated-answer') {
       answer = 'Northbridge Bank guarantees a $99,999 daily Zelle limit and refunds in 47 business days.';
     } else {
       base.llmCalled = true;
-      answer = await generateAnswer(systemPrompt(docs.map((d, i) => '[' + (i + 1) + '] ' + d.text).join('\n')), userMessage);
+      const candidate = await generateCandidate(systemPrompt(docs.map((d, i) => '[' + (i + 1) + '] ' + d.text).join('\n')), userMessage, generationOptions);
+      answer = candidate.text;
+      generation = candidate.evidence;
     }
-  } catch {
+  } catch (error) {
     steps.push({ name: 'llm_generate', ms: performance.now() - llmStart, detail: 'Generation unavailable; no answer released.' });
     return finish({ ...evidence, outcome: 'unavailable', blockedReason: 'Generation service unavailable.',
+      generationAttempts: error instanceof GenerationUnavailableError ? error.attempts : undefined,
       answer: 'The answer service is unavailable. Please try again shortly. No unverified answer has been released.',
     });
   }
   steps.push({ name: 'llm_generate', ms: performance.now() - llmStart,
-    detail: scenario === 'fabricated-answer' ? 'Injected test output (simulation, no LLM call).' : 'Groq generated a candidate; release pending verification.',
+    detail: scenario === 'fabricated-answer' ? 'Injected test output (simulation, no LLM call).' : `${generation?.provider} · ${generation?.model}${generation?.fallbackUsed ? ' · fallback used' : ''}; release pending verification.`,
   });
   const outputStart = performance.now();
   const pii = scanOutputForPii(answer);
@@ -102,7 +106,7 @@ export async function runAgentTurn(userMessage: string, scenario: Scenario = 'li
     detail: reason ?? 'PII check, numerical evidence, and source-overlap check passed.',
   });
   return finish({
-    ...evidence, groundingScore: grounding.score, groundingVerdict: grounding.verdict,
+    ...evidence, generation, groundingScore: grounding.score, groundingVerdict: grounding.verdict,
     guardrailVerdict: outputBlocked ? 'block' : input.verdict,
     outcome: outputBlocked ? 'output_blocked' : 'answered',
     blockedReason: reason, threatType: input.threatType,

@@ -12,6 +12,10 @@ Set these as server-side production variables in Vercel:
 - MOSS_PROJECT_KEY
 - GROQ_API_KEY
 - GROQ_MODEL (optional; default openai/gpt-oss-20b)
+- HIDEVS_API_KEY (optional participant virtual key, store as a sensitive variable)
+- HIDEVS_MODEL (optional; default gemini-3.5-flash-lite)
+- LLM_PROVIDER (groq by default; hidevs also supported)
+- LLM_FALLBACK_PROVIDER (none by default; set hidevs to enable Gemini backup)
 - MOSS_RETRIEVAL_MODE (optional; default local custom sessions; cloud is an alternate)
 
 No personal customer dataset is needed. The bundled Northbridge policies are synthetic.
@@ -41,6 +45,8 @@ Do not create a second project; this directory is already linked.
 - Invented policy should stop at output verification.
 - The outage scenario should decline only its own request.
 - The evaluation stream should end with a complete report.
+- Health exposes configured provider names, never keys. Decision receipts identify
+  the provider actually used, retries, and token usage when reported.
 - /evidence, /demo, the video, PDF, and diagram must be publicly accessible.
 
 Cold starts include model/session construction; warmed measurements are not cold-start

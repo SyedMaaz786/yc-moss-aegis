@@ -1,5 +1,6 @@
 import { INDEXES, mossQuery } from "./moss";
 import { normalizeForPhraseMatching } from "./normalize";
+import { API_KEY_PATTERN } from './privacy';
 import type { GroundingVerdict, RetrievedDoc } from "./types";
 
 /** Semantic similarity score (0-1) against the threat-patterns index above which a message is blocked outright. */
@@ -82,6 +83,7 @@ interface PiiPattern {
 // questions. ("What's your routing number" and "how do I reset my password"
 // are both completely benign and must not trip this.)
 const PII_PATTERNS: PiiPattern[] = [
+  { name: 'api_key', re: API_KEY_PATTERN, matchOn: 'raw' },
   { name: 'account_disclosure', re: /\b(show|reveal|read back|give me|tell me|repeat)\b.{0,40}\b(account number|card number|one.time (passcode|password))\b/i, matchOn: 'normalized' },
   { name: "ssn", re: /\b\d{3}-\d{2}-\d{4}\b/, matchOn: "raw" },
   { name: "card_number", re: /\b(?:\d[ -]?){13,16}\b/, matchOn: "raw" },
@@ -251,6 +253,7 @@ export async function checkGrounding(answer: string, contextDocIds: string[]): P
 export function scanOutputForPii(text: string): string[] {
   text = text.normalize('NFKC').replace(/[\u200B-\u200D\uFEFF]/g, '');
   const hits: string[] = [];
+  if (API_KEY_PATTERN.test(text)) hits.push('api_key');
   if (/\b\d{3}-\d{2}-\d{4}\b/.test(text)) hits.push("ssn");
   if (/\b(?:\d[ -]?){13,16}\b/.test(text)) hits.push("card_number");
   if (/\b\d{9,17}\b/.test(text.replace(/[^\d\s]/g, " ")) && /account|routing/i.test(text)) {

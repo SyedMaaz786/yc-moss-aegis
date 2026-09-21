@@ -20,6 +20,9 @@ test('release gates, source evidence, exports, accessibility and mobile layout',
   }
   const answer = await scenario(/Daily transfer limits/, 'answered');
   expect(answer.answer).toContain('5,000');
+  expect(answer.generation.provider).toBe('groq');
+  expect(answer.generation.model).toBeTruthy();
+  expect(answer.generation.attempts.at(-1).status).toBe('success');
   await page.getByRole('tab', { name: /sources/i }).click();
   await expect(page.getByText('[1] kb-transfers-02', { exact: false })).toBeVisible();
   await page.screenshot({ path: 'artifacts/sources.png', fullPage: true });
@@ -34,6 +37,7 @@ test('release gates, source evidence, exports, accessibility and mobile layout',
   expect((await (await searchResponse).json()).result.docs.length).toBeGreaterThan(0);
 
   await page.getByRole('tab', { name: 'receipt', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Generation provenance' })).toBeVisible();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export decision receipt/ }).click();
   expect((await download).suggestedFilename()).toMatch(/aegis-trace-.*\.json/);
@@ -62,6 +66,12 @@ test('API validates input, redacts identifiers, and isolates visitors', async ({
   expect((await a.post('/api/chat', { data: { message: ' ' } })).status()).toBe(400);
   expect((await a.post('/api/chat', { data: { message: 'a'.repeat(9000) } })).status()).toBe(400);
   expect((await a.post('/api/chat', { data: { message: 'test', scenario: 'unknown' } })).status()).toBe(400);
+  const credential = 'sk-' + 'A'.repeat(40);
+  const credentialResponse = await a.post('/api/chat', { data: { message: 'My API key is ' + credential } });
+  const credentialTrace = (await credentialResponse.json()).trace;
+  expect(credentialTrace.outcome).toBe('input_blocked');
+  expect(credentialTrace.llmCalled).toBe(false);
+  expect(JSON.stringify(credentialTrace)).not.toContain(credential);
   const response = await a.post('/api/chat', { data: { message: 'My SSN is 123-45-6789.' } });
   expect(response.status()).toBe(200);
   const body = await response.text();

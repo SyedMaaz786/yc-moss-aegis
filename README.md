@@ -36,6 +36,9 @@ inspectable decision with sources, stage timings, and a downloadable JSON receip
 - **Private, inspectable evidence:** sensitive identifiers are redacted; temporary
   traces are isolated by browser session; users can export receipts. Chaos is
   request-scoped and cannot disable someone else's session.
+- **Auditable generation recovery:** Groq is primary; optional HiDevs Gemini access
+  provides one bounded backup attempt on generation errors. Provider, model, attempts,
+  and reported token usage appear in receipts. Every candidate passes the same gates.
 
 ## Moss's role
 
@@ -80,6 +83,26 @@ is made; generation is a separate network call.
 The previous evaluation incorrectly accepted infrastructure refusals as benign passes.
 That scoring bug has been removed and regression-tested.
 
+### Same-suite provider comparison
+
+[The September 21 comparison](artifacts/provider-comparison.json) ran the same public
+32 cases once per provider, with warmed Moss retrieval and fallback disabled:
+
+| Generator | Cases passed | Attacks stopped | Benign success | p95 total |
+|---|---:|---:|---:|---:|
+| Groq / openai/gpt-oss-20b | 32/32 | 20/20 | 12/12 | 768 ms |
+| HiDevs / gemini-3.5-flash-lite | 31/32 | 20/20 | 11/12 | 1,793 ms |
+
+The unavailable Gemini turn remains a failure in the published report. This small,
+sequential comparison supports the current primary-provider choice; it is not a
+general model ranking. The reported Gemini usage for completed candidates was 3,354
+tokens; billed usage, including unsuccessful requests, is tracked by the HiDevs wallet.
+
+[A separate recovery receipt](artifacts/failover.json) records a **simulated primary
+HTTP 503** followed by a real Gemini answer that passed the release gates. It is a
+controlled test, not an observed production incident. An output rejected by the gates
+is withheld rather than retried with another model.
+
 ## Run locally
 
 Node.js 22+ recommended (CI uses Node 22).
@@ -94,6 +117,15 @@ npm run dev
 The model is included in the repository. No model download or cloud index seeding is
 needed for the default local-session mode. Moss credentials and a Groq key are still
 required. Keep them in `.env.local`; never commit them.
+
+For organizer-provided Gemini credits, set `HIDEVS_API_KEY` and optionally
+`HIDEVS_MODEL` (default `gemini-3.5-flash-lite`). Set `LLM_FALLBACK_PROVIDER=hidevs`
+to enable backup generation, or `LLM_PROVIDER=hidevs` to select it as primary.
+The fixed gateway is `https://llm.hidevs.xyz/v1/chat/completions`; the key is a HiDevs
+virtual key, not a direct Google API key. All values stay server-side.
+
+Run `node --import tsx scripts/compare-providers.ts` for one fresh comparison and
+`node --import tsx scripts/check-failover.ts` for the controlled recovery test.
 
 ```sh
 npm test                 # deterministic security/failure-path tests, no credentials
@@ -119,7 +151,7 @@ cloud path. It is not required to demonstrate the local native retrieval path.
 The two-minute demo captures the working application with an offline synthetic voice
 and captions. Its reproducible recording scripts are in [recordings](recordings).
 
-Validation: 42 unit tests and three browser tests cover live gates, evaluation,
+Validation: 53 unit tests and three browser tests cover live gates, evaluation,
 accessibility, exports, trace search, request validation, redaction, and session isolation.
 
 ## Scope and limitations

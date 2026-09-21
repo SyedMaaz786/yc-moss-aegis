@@ -4,7 +4,7 @@
 
 **Track:** Agent Reliability, Security & Evaluation
 
-**Version:** 2.1 · September 21, 2026
+**Version:** 2.2 · September 21, 2026
 
 **Live product:** https://yc-moss-aegis.vercel.app
 
@@ -39,7 +39,7 @@ the verdict, stage timings, sources, and receipt; export evidence; run evaluatio
 | Input screening | Unicode/leet normalization, local attack and PII patterns, Moss semantic threat retrieval |
 | Policy retrieval | Moss native custom session using bundled MiniLM query/document vectors |
 | Context validation | Retrieved ID and exact content hash must match the versioned policy manifest |
-| Candidate generation | Groq produces a short policy-only answer with source numbers |
+| Candidate generation | Groq primary with optional HiDevs Gemini backup; both produce candidates for the same release gate |
 | Output release gate | PII scan, numeric source-membership check, and Moss answer-to-source similarity |
 | Refusal behavior | Missing retrieval, failed generation, insufficient grounding, or invalid sources prevents unverified output release |
 | Observability | Each turn records stage durations, outcome, source evidence, retrieval mode, and whether generation was called |
@@ -48,6 +48,14 @@ the verdict, stage timings, sources, and receipt; export evidence; run evaluatio
 | Export | Decision JSON, session JSON, full evaluation JSON |
 | History | Previous evaluation stored locally in the browser for run comparison |
 | Accessibility | Keyboard controls, labeled inputs, status announcements, mobile layout, reduced motion |
+| Provider evidence | Actual provider/model, sanitized attempts, reported usage, same-suite comparison, and a controlled real-backup test |
+
+The September 21 provider comparison recorded Groq at 32/32 cases and 768 ms p95,
+and HiDevs Gemini Flash Lite at 31/32 and 1,793 ms p95. The unavailable Gemini turn
+remains a failed case. This is one sequential run per provider with warm retrieval,
+not an independent benchmark. Groq remains primary; Gemini offers failure recovery.
+The separate recovery test injects a primary HTTP 503 and verifies a real Gemini
+candidate through all release gates. Pasted API-key patterns are blocked and redacted.
 
 ## 5. Moss integration
 
