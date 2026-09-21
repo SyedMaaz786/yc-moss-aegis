@@ -1,120 +1,90 @@
-import { MossClient, type SearchResult, type QueryOptions } from "@moss-dev/moss";
-import { isChaosMossDown } from "./chaos";
-import { tmpdir } from "os";
-import { join } from "path";
-
-/**
- * Vercel's serverless filesystem is read-only outside /tmp. Moss's client
- * writes a stable device-id file (and index cache) under a cachePath that
- * defaults to somewhere in the working directory / home dir, which fails
- * there with "Read-only file system" — a separate bug from Moss's own
- * uptime, seen on this project's first production deploy. os.tmpdir() is
- * writable on every platform this runs on (Vercel, local dev, CI).
- */
-const MOSS_CACHE_PATH = join(tmpdir(), "aegis-moss-cache");
-
-/**
- * The embedding-model artifact download also failed with the same
- * "Read-only file system" error even after passing cachePath above — that
- * option only covers the device-id/index cache per Moss's own docs, not the
- * model binary cache. The Rust core almost certainly resolves that location
- * from $HOME (the standard `dirs::cache_dir()` behavior for native
- * binaries), and Vercel's Lambda-based runtime sets HOME to a read-only
- * path. Redirecting HOME/XDG_CACHE_HOME to /tmp is the standard fix for
- * this exact class of bug in native/model-downloading dependencies on
- * serverless platforms. Safe to do unconditionally: it only affects what
- * this process's own env looks like, not the host machine.
- */
-if (!process.env.__AEGIS_HOME_PATCHED) {
-  process.env.HOME = tmpdir();
-  process.env.XDG_CACHE_HOME = join(tmpdir(), ".cache");
-  process.env.__AEGIS_HOME_PATCHED = "1";
-}
-
+import { MossClient, type SearchResult, type QueryOptions, type SessionIndex } from '@moss-dev/moss';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { embed } from './embeddings';
+import knowledge from '../../data/knowledge-base.json';
+import threats from '../../data/threat-patterns.json';
 export const INDEXES = {
-  knowledge: "aegis-knowledge-base",
-  threats: "aegis-threat-patterns",
-  evalCases: "aegis-eval-cases",
-  traces: "aegis-traces",
-  evalRuns: "aegis-eval-runs",
+  knowledge: 'aegis-knowledge-base', threats: 'aegis-threat-patterns',
+  evalCases: 'aegis-eval-cases', traces: 'aegis-traces', evalRuns: 'aegis-eval-runs',
 } as const;
-
-declare global {
-  var __aegisMossClient: MossClient | undefined;
-  var __aegisLoadedIndexes: Set<string> | undefined;
-}
-
-function credentials() {
-  const projectId = process.env.MOSS_PROJECT_ID;
-  const projectKey = process.env.MOSS_PROJECT_KEY;
-  if (!projectId || !projectKey) {
-    throw new Error(
-      "MOSS_PROJECT_ID / MOSS_PROJECT_KEY are not set. Copy .env.example to .env.local and add your Moss credentials (free tier at https://moss.dev)."
-    );
-  }
-  return { projectId, projectKey };
-}
-
-/**
- * Reused across warm serverless invocations via globalThis so we don't pay
- * the client-construction + index-load cost on every request.
- */
+export type MossResult = SearchResult & { mode: 'moss-local' | 'moss-cloud'; embeddingMs: number; searchMs: number };
+let client: MossClient | undefined;
+const sessions = new Map<string, Promise<SessionIndex>>();
+const vectors = new Map<string, Map<string, number[]>>();
+const loads = new Map<string, Promise<void>>();
 export function getMossClient(): MossClient {
-  if (isChaosMossDown()) {
-    throw new Error("Simulated Moss outage (chaos toggle enabled) — not a real failure.");
+  if (!client) {
+    const id = process.env.MOSS_PROJECT_ID;
+    const key = process.env.MOSS_PROJECT_KEY;
+    if (!id || !key) throw new Error('Moss credentials are not configured.');
+    client = new MossClient(id, key, { cachePath: join(tmpdir(), 'aegis-moss-cache') });
   }
-  if (!globalThis.__aegisMossClient) {
-    const { projectId, projectKey } = credentials();
-    globalThis.__aegisMossClient = new MossClient(projectId, projectKey, { cachePath: MOSS_CACHE_PATH });
+  return client;
+}
+export async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([promise, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Retrieval time budget exceeded.')), ms);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+async function localSession(name: string): Promise<SessionIndex> {
+  let pending = sessions.get(name);
+  if (!pending) {
+    pending = (async () => {
+      const source = name === INDEXES.knowledge ? knowledge : name === INDEXES.threats ? threats : null;
+      if (!source) throw new Error('No bundled corpus for this index.');
+      const session = await getMossClient().session(name + '-local-v2', 'custom');
+      try {
+        const docs = [];
+        for (const doc of source) docs.push({ ...doc, embedding: await embed(doc.text) });
+        vectors.set(name, new Map(docs.map(doc => [doc.id, doc.embedding])));
+        await session.addDocs(docs);
+        return session;
+      } catch (error) { await session.close(); throw error; }
+    })();
+    sessions.set(name, pending);
+    pending.catch(() => sessions.delete(name));
   }
-  return globalThis.__aegisMossClient;
+  return pending;
 }
-
-function loadedSet(): Set<string> {
-  if (!globalThis.__aegisLoadedIndexes) {
-    globalThis.__aegisLoadedIndexes = new Set();
+export async function ensureLoaded(name: string): Promise<void> {
+  if (!loads.has(name)) {
+    const pending = getMossClient().loadIndex(name).then(() => undefined);
+    loads.set(name, pending);
+    pending.catch(() => loads.delete(name));
   }
-  return globalThis.__aegisLoadedIndexes;
+  await loads.get(name);
 }
-
-export async function ensureLoaded(indexName: string): Promise<void> {
-  const loaded = loadedSet();
-  if (loaded.has(indexName)) return;
-  const client = getMossClient();
-  await client.loadIndex(indexName);
-  loaded.add(indexName);
-}
-
-/** Default hard ceiling on a Moss round trip so a slow or hanging upstream can never blow a request's latency budget. */
-const DEFAULT_TIMEOUT_MS = 3000;
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Moss call exceeded its ${timeoutMs}ms budget`)), timeoutMs)
-    ),
-  ]);
-}
-
-/**
- * Query an index, loading it into memory first if this warm instance hasn't
- * already. Bounded by `timeoutMs` (default 3s) end-to-end — including the
- * first-load cost — so a degraded Moss backend fails the caller's try/catch
- * fast instead of hanging the request.
- */
-export async function mossQuery(
-  indexName: string,
-  query: string,
-  options?: QueryOptions & { timeoutMs?: number }
-): Promise<SearchResult> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...queryOptions } = options ?? {};
-  return withTimeout(
-    (async () => {
-      await ensureLoaded(indexName);
-      const client = getMossClient();
-      return client.query(indexName, query, queryOptions);
-    })(),
-    timeoutMs
-  );
+// Moss's native local session performs every vector search; the bundled encoder
+// supplies identically generated document/query vectors without a runtime CDN.
+export async function mossQuery(name: string, query: string, options?: QueryOptions & { timeoutMs?: number }): Promise<MossResult> {
+  const { timeoutMs = 12000, ...queryOptions } = options ?? {};
+  return withTimeout((async () => {
+    const bundled = process.env.MOSS_RETRIEVAL_MODE !== 'cloud' && (name === INDEXES.knowledge || name === INDEXES.threats);
+    if (bundled) {
+      const session = await localSession(name);
+      const start = performance.now();
+      const embedding = await embed(query);
+      const embeddingMs = performance.now() - start;
+      const searchStart = performance.now();
+      const result = await session.query(query, { alpha: 1, ...queryOptions, embedding });
+      const searchMs = performance.now() - searchStart;
+      // Moss hybrid scores are rank-fusion values (top hit can always be 1).
+      // Calibrate only returned candidates against the original unit vectors;
+      // rank scores must never be treated as absolute safety confidence.
+      const docs = result.docs.map(doc => {
+        const vector = vectors.get(name)?.get(doc.id);
+        const score = vector ? Math.max(0, Math.min(1, vector.reduce((sum, value, i) => sum + value * embedding[i], 0))) : 0;
+        return { ...doc, score };
+      });
+      return { ...result, docs, mode: 'moss-local' as const, embeddingMs, searchMs };
+    }
+    await ensureLoaded(name);
+    const start = performance.now();
+    const result = await getMossClient().query(name, query, queryOptions);
+    return { ...result, mode: 'moss-cloud' as const, embeddingMs: 0, searchMs: performance.now() - start };
+  })(), timeoutMs);
 }

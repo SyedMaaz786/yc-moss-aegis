@@ -24,6 +24,7 @@ export async function generateAnswer(systemPrompt: string, userMessage: string):
   }
 
   const res = await fetch(GROQ_URL, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -32,6 +33,7 @@ export async function generateAnswer(systemPrompt: string, userMessage: string):
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 600,
+      temperature: 0,
       reasoning_effort: "low",
       messages: [
         { role: "system", content: systemPrompt },

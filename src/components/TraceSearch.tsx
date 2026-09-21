@@ -43,7 +43,7 @@ export function TraceSearch() {
   return (
     <div>
       <div className="text-xs text-text-muted mb-2">
-        Ask your trace history a question — semantic search over past requests, powered by Moss.
+        Semantic search over this browser session, powered by Moss.
       </div>
       <form
         onSubmit={(e) => {
@@ -54,6 +54,8 @@ export function TraceSearch() {
       >
         <input
           value={query}
+          aria-label="Search session traces"
+          maxLength={300}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g. show me blocked jailbreak attempts"
           className="flex-1 rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-series-1/40"
@@ -61,7 +63,7 @@ export function TraceSearch() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-md bg-series-1 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          className="btn btn-primary !py-1.5"
         >
           {loading ? "…" : "Search"}
         </button>

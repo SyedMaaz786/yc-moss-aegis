@@ -1,55 +1,41 @@
-# Deploying Aegis to Vercel
+# Deploying Aegis
 
-## Option A — you drive it (2 commands, no token needed)
+The existing GitHub repository is connected to the Vercel project yc-moss-aegis.
+A push to main should trigger a production build. Verify the deployment status and
+live health after every release; a successful Git push is not proof of deployment.
 
-```bash
-npm install -g vercel
-vercel login          # opens a browser / emails a verification link
-vercel --prod         # from the project root; follow the prompts
-```
+## Environment
 
-When prompted, link to a new project. After the first deploy, set the three
-environment variables (Project Settings → Environment Variables in the Vercel
-dashboard, or via CLI):
+Set these as server-side production variables in Vercel:
 
-```bash
-vercel env add MOSS_PROJECT_ID production
-vercel env add MOSS_PROJECT_KEY production
-vercel env add GROQ_API_KEY production
-vercel env add GROQ_MODEL production   # optional, defaults to llama-3.3-70b-versatile
-```
+- MOSS_PROJECT_ID
+- MOSS_PROJECT_KEY
+- GROQ_API_KEY
+- GROQ_MODEL (optional; default openai/gpt-oss-20b)
+- MOSS_RETRIEVAL_MODE (optional; default local custom sessions; cloud is an alternate)
 
-Then redeploy so the new env vars take effect:
+No personal customer dataset is needed. The bundled Northbridge policies are synthetic.
 
-```bash
-vercel --prod
-```
+## Runtime
 
-## Option B — give Claude a token and it drives the CLI end-to-end
+Use Node 22 or later and npm ci. next.config.ts externalizes native dependencies and
+traces the MiniLM files plus the Linux ONNX runtime. Models are included in the repository,
+so deployment has no model-download build step. No persistent filesystem is required.
 
-1. Go to https://vercel.com/account/tokens, create a token.
-2. Share `VERCEL_TOKEN=...` — every `vercel` command can then run non-interactively
-   with `--token $VERCEL_TOKEN --yes`, including setting env vars and deploying,
-   with no browser step required.
+Run npm run build, then npm start locally to test a production build.
+For an authenticated manual deployment, run vercel --prod from this directory.
+Do not create a second project; this directory is already linked.
 
-## Notes / gotchas
+## Verification
 
-- **Runtime:** all API routes are pinned to the Node.js runtime
-  (`export const runtime = "nodejs"`), not Edge — `@moss-dev/moss` ships a
-  native N-API addon (`.node` binary) that Edge can't load. `next.config.ts`
-  also marks `@moss-dev/moss`/`@moss-dev/moss-core` as `serverExternalPackages`
-  so the bundler doesn't try to webpack the native binary.
-- **Platform binaries:** `@moss-dev/moss-core` ships prebuilt binaries for
-  `linux-x64-gnu` and `linux-arm64-gnu` (Vercel's serverless runtime), so no
-  extra build step should be needed — but this is the one part of the stack
-  worth smoke-testing on the actual deployed URL before submitting, since it's
-  a native addon in a serverless environment.
-- **Cold starts:** the first request after a cold start pays for
-  `MossClient` construction + `loadIndex()` on each index it touches. Warm
-  invocations reuse both via `globalThis` (see `src/lib/moss.ts`).
-- **Eval suite duration:** `/api/eval/run` calls the full pipeline (including
-  an LLM call) for 16 cases sequentially — `maxDuration = 60` is set on that
-  route to give it enough headroom on Vercel's default function timeout.
+- GET /api/system/health should return moss=up and mode=moss-local.
+- A daily Zelle limit question should release a source-cited answer.
+- Prompt injection should stop before generation.
+- Poisoned context should stop at source integrity.
+- Invented policy should stop at output verification.
+- The outage scenario should decline only its own request.
+- The evaluation stream should end with a complete report.
+- /evidence, /demo, the video, PDF, and diagram must be publicly accessible.
 
-After deploying, update the **Live Demo URL** in your submission and in
-`README.md`.
+Cold starts include model/session construction; warmed measurements are not cold-start
+measurements. Session trace memory is temporary and may differ across warm instances.

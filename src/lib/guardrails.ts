@@ -3,9 +3,9 @@ import { normalizeForPhraseMatching } from "./normalize";
 import type { GroundingVerdict, RetrievedDoc } from "./types";
 
 /** Semantic similarity score (0-1) against the threat-patterns index above which a message is blocked outright. */
-const BLOCK_THRESHOLD = 0.6;
+const BLOCK_THRESHOLD = 0.75;
 /** Below BLOCK but above this, the message is allowed through but flagged for review. */
-const WARN_THRESHOLD = 0.4;
+const WARN_THRESHOLD = 0.55;
 
 /** Grounding score thresholds against the knowledge-base index. */
 const GROUNDED_THRESHOLD = 0.55;
@@ -36,7 +36,7 @@ interface InjectionMarker {
 const INJECTION_MARKERS: InjectionMarker[] = [
   // --- prompt injection ---
   { re: /ignore\s+(?:\w+\s+)?(previous|prior|above)\s+instructions?/i, threatType: "prompt_injection" },
-  { re: /disregard\s+(?:\w+\s+){0,3}(system prompt|guidelines|rules|instructions|bank policy)/i, threatType: "prompt_injection" },
+  { re: /disregard\s+(?:\w+\s+){0,6}(system prompt|guidelines|rules|instructions|bank policy)/i, threatType: "prompt_injection" },
   { re: /forget everything\s+(?:\w+\s+){0,3}(told|above)/i, threatType: "prompt_injection" },
   { re: /system\s*override/i, threatType: "prompt_injection" },
   { re: /reveal\s+(?:\w+\s+)?(your|the)\s+(?:\w+\s+)?(system prompt|instructions)/i, threatType: "prompt_injection" },
@@ -56,11 +56,11 @@ const INJECTION_MARKERS: InjectionMarker[] = [
   { re: /\b(wire|transfer|send)\b.{0,60}\bwithout\s+verif/i, threatType: "unauthorized_action" },
 
   // --- social engineering (claimed authority to bypass checks) ---
-  { re: /\bi'?m\s+(the|a)\b.{0,50}\b(compliance officer|bank manager|regulator|auditor)\b/i, threatType: "social_engineering" },
+  { re: /\bi'?m\s+(the|a)\b.{0,50}\b(compliance officer|bank manager|regulator|auditor)\b.{0,80}\b(waive|bypass|share|skip|disclose)\b/i, threatType: "social_engineering" },
   { re: /\bwaive\s+(the\s+)?(id check|verification)\b/i, threatType: "social_engineering" },
 
   // --- malicious request (asking the agent to generate an attack artifact) ---
-  { re: /\bphishing\s+email\b/i, threatType: "malicious_request" },
+  { re: /\b(write|draft|create|generate|compose)\b.{0,35}\bphishing\s+(email|message)\b/i, threatType: "malicious_request" },
   { re: /\bpretending to be\b.{0,60}\basking\b.{0,40}\bpassword\b/i, threatType: "malicious_request" },
 ];
 
@@ -82,6 +82,7 @@ interface PiiPattern {
 // questions. ("What's your routing number" and "how do I reset my password"
 // are both completely benign and must not trip this.)
 const PII_PATTERNS: PiiPattern[] = [
+  { name: 'account_disclosure', re: /\b(show|reveal|read back|give me|tell me|repeat)\b.{0,40}\b(account number|card number|one.time (passcode|password))\b/i, matchOn: 'normalized' },
   { name: "ssn", re: /\b\d{3}-\d{2}-\d{4}\b/, matchOn: "raw" },
   { name: "card_number", re: /\b(?:\d[ -]?){13,16}\b/, matchOn: "raw" },
   {
@@ -113,7 +114,7 @@ export interface GuardrailResult {
   piiDetected?: string[];
 }
 
-export async function checkInput(message: string): Promise<GuardrailResult> {
+export async function checkInput(message: string, localOnly = false): Promise<GuardrailResult> {
   const start = performance.now();
 
   // Digit-based PII patterns (SSN/card numbers) need real digits, so they run
@@ -122,8 +123,9 @@ export async function checkInput(message: string): Promise<GuardrailResult> {
   // leetspeak, cross-script homoglyphs, and zero-width characters can't
   // trivially defeat the regex fallback.
   const normalizedMessage = normalizeForPhraseMatching(message);
+  const digitMessage = message.normalize('NFKC').replace(/[\u200B-\u200D\uFEFF]/g, '');
   const piiHits = PII_PATTERNS.filter((p) =>
-    p.re.test(p.matchOn === "raw" ? message : normalizedMessage)
+    p.re.test(p.matchOn === "raw" ? digitMessage : normalizedMessage)
   ).map((p) => p.name);
   const regexMatch = INJECTION_MARKERS.find((m) => m.re.test(normalizedMessage));
   const regexHit = Boolean(regexMatch);
@@ -149,13 +151,14 @@ export async function checkInput(message: string): Promise<GuardrailResult> {
     };
   }
 
+  if (localOnly) return { verdict: 'allow', score: 0, latencyMs: performance.now() - start };
   let topScore = 0;
   let topText: string | undefined;
   let topThreatType: string | undefined;
   let mossLatencyMs: number | undefined;
 
   try {
-    const result = await mossQuery(INDEXES.threats, message, { topK: 3, timeoutMs: 1200 });
+    const result = await mossQuery(INDEXES.threats, message, { topK: 3, timeoutMs: 12000 });
     mossLatencyMs = result.timeTakenInMs;
     const top = result.docs[0];
     if (top) {
@@ -214,7 +217,7 @@ export interface GroundingResult {
 export async function checkGrounding(answer: string, contextDocIds: string[]): Promise<GroundingResult> {
   const start = performance.now();
 
-  if (!answer.trim()) {
+  if (!answer.trim() || contextDocIds.length === 0) {
     return { score: 0, verdict: "ungrounded", latencyMs: performance.now() - start, supportingDocIds: [] };
   }
 
@@ -234,7 +237,7 @@ export async function checkGrounding(answer: string, contextDocIds: string[]): P
 
   const score = contextDocIds.length
     ? overlap.length
-      ? overlap.reduce((sum, d) => sum + d.score, 0) / overlap.length
+      ? Math.max(...overlap.map(d => d.score))
       : 0
     : topScore;
 
@@ -246,6 +249,7 @@ export async function checkGrounding(answer: string, contextDocIds: string[]): P
 
 /** Scan agent OUTPUT for anything that looks like it leaked sensitive data, independent of the input check. */
 export function scanOutputForPii(text: string): string[] {
+  text = text.normalize('NFKC').replace(/[\u200B-\u200D\uFEFF]/g, '');
   const hits: string[] = [];
   if (/\b\d{3}-\d{2}-\d{4}\b/.test(text)) hits.push("ssn");
   if (/\b(?:\d[ -]?){13,16}\b/.test(text)) hits.push("card_number");

@@ -24,10 +24,13 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   // @moss-dev/moss ships a native N-API addon (.node binary) — keep it out of
   // the server bundle so Next.js loads it from node_modules at runtime instead
   // of trying to webpack/turbopack it.
-  serverExternalPackages: ["@moss-dev/moss", "@moss-dev/moss-core"],
+  serverExternalPackages: ["@moss-dev/moss", "@moss-dev/moss-core", "@huggingface/transformers", "onnxruntime-node"],
+  outputFileTracingIncludes: { '/api/*': ['./models/**/*', './node_modules/onnxruntime-node/dist/**/*', './node_modules/onnxruntime-node/package.json', './node_modules/onnxruntime-node/node_modules/**/*', `./node_modules/onnxruntime-node/bin/napi-*/${process.platform}/${process.arch}/**/*`] },
+  outputFileTracingExcludes: { '/api/*': ['./node_modules/onnxruntime-node/bin/napi-*/darwin/**/*', './node_modules/onnxruntime-node/bin/napi-*/linux/arm64/**/*'] },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

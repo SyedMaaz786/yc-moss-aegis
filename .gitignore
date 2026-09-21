@@ -41,5 +41,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
-.env*
+# local verification and rendering tools
+/test-results/
+/playwright-report/
+/recordings/.tools/
+/recordings/.work/
+/artifacts/*.png
+/artifacts/browser-results.json
+/artifacts/*.zip
+!/artifacts/evaluation.json

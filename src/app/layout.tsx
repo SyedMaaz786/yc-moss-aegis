@@ -1,88 +1,39 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
-import { SystemStatusBanner } from "@/components/SystemStatusBanner";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const TITLE = "Aegis — Trust Layer for AI Agents";
-const DESCRIPTION =
-  "Real-time guardrails, grounding checks, latency tracing, and an evaluation harness for AI agents, built on Moss. YC Fall 2026 x Moss Zero Latency Builder Sprint.";
-
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { SystemStatusBanner } from '@/components/SystemStatusBanner';
+import './globals.css';
 export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  openGraph: {
-    title: TITLE,
-    description: DESCRIPTION,
-    type: "website",
-    siteName: "Aegis",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: TITLE,
-    description: DESCRIPTION,
-  },
+  title: 'Aegis | Evidence before trust',
+  description: 'A live trust layer for AI agents. Challenge the input, verify the context, and inspect the evidence. Built with Moss by SyedMaaz786.',
+  metadataBase: new URL('https://yc-moss-aegis.vercel.app'),
+  icons: { icon: '/submission/mark.svg' },
+  openGraph: { title: 'Aegis — Evidence before trust', description: 'Runtime guardrails, source integrity and honest evaluations, powered by Moss.', type: 'website', images: ['/submission/social.png'] },
+  twitter: { card: 'summary_large_image', images: ['/submission/social.png'] },
 };
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-surface-0 text-text-primary">
-        <header className="border-b border-border bg-surface-1/80 backdrop-blur sticky top-0 z-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-series-1 text-white text-xs font-bold">
-                A
-              </span>
-              <span>Aegis</span>
-              <span className="hidden sm:inline text-text-muted font-normal text-sm">
-                / real-time trust layer for AI agents
-              </span>
-            </Link>
-            <nav className="flex items-center gap-1 text-sm">
-              <Link
-                href="/"
-                className="px-3 py-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-2 transition-colors"
-              >
-                Live Console
-              </Link>
-              <Link
-                href="/eval"
-                className="px-3 py-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-2 transition-colors"
-              >
-                Evaluation
-              </Link>
-              <a
-                href="https://github.com/SyedMaaz786/yc-moss-aegis"
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-2 transition-colors"
-              >
-                GitHub
-              </a>
-            </nav>
-          </div>
-        </header>
-        <SystemStatusBanner />
-        <main className="flex-1">{children}</main>
-        <footer className="border-t border-border py-4 text-center text-xs text-text-muted">
-          Built on <span className="text-text-secondary">Moss</span> for the YC Fall 2026 × Moss Zero Latency Builder
-          Sprint — Agent Reliability, Security &amp; Evaluation track.
-        </footer>
-      </body>
-    </html>
-  );
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="en"><body className="min-h-screen flex flex-col">
+    <a href="#main" className="sr-only focus:not-sr-only focus:p-4">Skip to content</a>
+    <header className="border-b border-border bg-surface-0/95 sticky top-0 z-30 backdrop-blur">
+      <div className="shell flex items-center justify-between gap-3 h-[70px]">
+        <Link href="/" aria-label="Aegis home" className="flex items-center gap-3">
+          <svg width="29" height="34" viewBox="0 0 29 34" fill="none" aria-hidden="true"><path d="M14.5 2 27 7v10c0 8-12.5 15-12.5 15S2 25 2 17V7Z" stroke="#7de3c2" strokeWidth="1.6"/><path d="m8 17 4 4 9-10" stroke="#7de3c2" strokeWidth="1.8"/></svg>
+          <span className="text-xl tracking-[-0.06em] font-bold">aegis<span className="text-series-1">.</span></span>
+          <span className="tag hidden sm:inline-flex ml-2">TRUST INFRASTRUCTURE</span>
+        </Link>
+        <nav aria-label="Main navigation" className="flex items-center">
+          <Link className="nav-link" href="/">Console</Link>
+          <Link className="nav-link" href="/eval">Evaluation</Link>
+          <Link className="nav-link" href="/evidence">Evidence</Link>
+          <a className="nav-link hidden sm:block" href="https://github.com/SyedMaaz786/yc-moss-aegis" target="_blank" rel="noreferrer">GitHub ↗</a>
+        </nav>
+      </div>
+    </header>
+    <SystemStatusBanner />
+    <main id="main" className="flex-1">{children}</main>
+    <footer className="shell border-t border-border mt-12 py-6 flex flex-wrap gap-3 items-center justify-between text-xs text-text-muted">
+      <span>Built by <a className="text-text-secondary underline underline-offset-4" href="https://github.com/SyedMaaz786">SyedMaaz786</a> · Powered by Moss</span>
+      <span>YC × Moss Builder Sprint · Track 04</span>
+      <span>Fictional bank. Real guardrails.</span>
+    </footer>
+  </body></html>;
 }

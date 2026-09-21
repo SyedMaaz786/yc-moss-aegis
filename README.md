@@ -1,167 +1,140 @@
-# Aegis — the trust layer for AI agents, built on Moss
+# Aegis — evidence before trust
 
-**YC Fall 2026 × Moss: The Zero Latency Builder Sprint — Track 4: Agent Reliability, Security & Evaluation**
+**A runtime trust layer for AI agents, built with Moss.**
 
-Aegis wraps a RAG support agent (a fictional bank, "Northbridge Bank") with a real-time
-trust layer: every user message is checked against a semantic threat index before the
-agent is allowed to respond, every response is re-checked for grounding and leaked PII
-before it reaches the user, and every step is timed and traced live. A built-in
-evaluation harness scores the whole pipeline against a fixed adversarial + benign test
-suite on demand.
+YC Fall 2026 × Moss Builder Sprint · Track 4: Agent Reliability, Security & Evaluation
 
-**Live demo:** https://yc-moss-aegis.vercel.app
-**Video walkthrough:** _(added before submission)_
+Built by **[SyedMaaz786](https://github.com/SyedMaaz786)**.
 
-## Why this, and why Moss
+[Live console](https://yc-moss-aegis.vercel.app) · [Evaluation lab](https://yc-moss-aegis.vercel.app/eval) · [Evidence](https://yc-moss-aegis.vercel.app/evidence) · [Two-minute demo](https://yc-moss-aegis.vercel.app/demo)
 
-Guardrails and evaluation are usually slow: a second LLM call to judge the first one, a
-network hop to a vector DB to check retrieval quality, a batch job that runs evals
-overnight. That defeats the purpose of a "trust layer" that's supposed to sit in the hot
-path of a live conversation.
+![Aegis console](public/submission/console.png)
 
-Moss removes the retrieval round trip (sub-10ms, no vector DB), so Aegis uses it as more
-than a RAG backend — it's the primitive for three different reliability checks that all
-need to be fast enough to run on every single turn:
+An agent that refuses every request is safe but useless. An agent that confidently
+answers everything is useful until it is wrong. Aegis makes both sides visible:
+**what was prevented, what was answered, and what evidence justified release.**
 
-1. **Input guardrail** — the user's message is matched against a `threat-patterns` Moss
-   index (jailbreaks, prompt injection, PII exfiltration, social engineering, fraud
-   requests). A high-confidence match blocks the request **before the LLM is ever
-   called** — adversarial requests get blocked in well under 100ms, benign ones proceed.
-2. **Grounding check (faithfulness via re-retrieval)** — after the agent answers, Aegis
-   re-queries the knowledge base using the *answer itself* as the query. A genuinely
-   grounded answer re-retrieves the same source documents with a high score; an answer
-   that drifted or hallucinated does not. No second LLM call needed.
-3. **Continuous evaluation & tracing** — every request (and every eval run) is upserted
-   into its own Moss index, so the dashboard can semantically search live traffic
-   ("show me blocked jailbreak attempts") and eval runs are tracked over time instead of
-   living in a single ephemeral report.
+Try a fictional bank policy question, inject an instruction, tamper with retrieved
+context, fabricate a policy amount, or simulate an outage. Every turn produces an
+inspectable decision with sources, stage timings, and a downloadable JSON receipt.
 
-See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full component diagram and request
-lifecycle, [`PRD.md`](./PRD.md) for the product spec, and [`THREAT_MODEL.md`](./THREAT_MODEL.md)
-for the adversaries/assets/controls this build is actually defending against.
+## What makes this different
 
-## What's in the box
+- **Five release gates:** input screening → Moss retrieval → source integrity →
+  candidate generation → output verification. Rejected output never reaches the user
+  or the trace store.
+- **Context is checked before the model sees it.** Retrieved text must match a
+  versioned SHA-256 policy manifest. A forged document with a legitimate ID is quarantined.
+- **Semantic similarity is not treated as factual proof.** A numerical-claim check
+  catches invented policy amounts even when the answer is topically similar.
+- **The model CDN is not a runtime dependency.** A bundled quantized MiniLM encoder
+  supplies vectors to Moss's native custom sessions. Moss performs the searches;
+  document and query embeddings use the same model bytes.
+- **Honest evaluation:** benign cases require useful, released, grounded answers.
+  Expected policy facts must appear in each benign answer. Missing evidence and provider errors fail the case. Attack blocking, benign success,
+  false positives, and latency are reported separately.
+- **Private, inspectable evidence:** sensitive identifiers are redacted; temporary
+  traces are isolated by browser session; users can export receipts. Chaos is
+  request-scoped and cannot disable someone else's session.
 
-- **Live Trust Console** (`/`) — chat with the protected agent, or click a preset attack
-  (prompt injection, jailbreak, PII exfiltration, unauthorized transfer) to watch it get
-  blocked in real time. A live feed shows every request's verdict, latency breakdown
-  (input guardrail → Moss retrieval → Groq generation → output guardrail), and
-  grounding score. A trace-search box lets you semantically query request history.
-- **Evaluation harness** (`/eval`) — runs 18 fixed test cases (benign + adversarial, including
-  Unicode/leetspeak-obfuscated injection attempts) through the full pipeline, scores safety
-  accuracy, average grounding, and p95 latency, and persists every run to Moss so you can
-  track regressions across runs.
-- **Guardrail engine** (`src/lib/guardrails.ts`) — semantic threat matching + regex
-  pre-filter for input, re-retrieval grounding + PII regex scan for output.
-- **Agent pipeline** (`src/lib/agent.ts`) — orchestrates input guardrail → Moss retrieval
-  → Groq generation → output guardrail, with per-step timing on every turn.
-- **Live reliability status banner** — a persistent bar (`/api/system/health`,
-  `src/components/SystemStatusBanner.tsx`) that reports Moss's actual round-trip health on
-  every page, and switches to an honest degraded-mode message the moment a real Moss call
-  fails — no polling a mock, this is wired to the same code path production traffic uses.
-- **Chaos toggle** — a one-click "🧪 Simulate outage" control in that same banner
-  (`/api/system/chaos`) that forces every Moss call in the app to fail on demand, so the
-  failover behavior is demonstrable in a live judging session or a recording without
-  needing to wait for (or hope for) a real outage. Auto-restores after 90 seconds.
-- **Bounded-latency Moss calls** — every `mossQuery` carries a hard timeout (1.2s on the
-  input guardrail, 3s elsewhere by default; see `src/lib/moss.ts`), so a slow or hanging
-  upstream can never blow a request's latency budget — it fails the caller's `try/catch`
-  and falls over to the local check instead.
-- **Automated failover tests, no secrets required** (`src/lib/guardrails.test.ts`,
-  `npm test`) — exercise the exact code path this project is leaning on for its
-  reliability story: with zero Moss/Groq credentials configured, `checkInput` and
-  `checkGrounding` must still correctly block known attacks, allow benign traffic, and
-  fail safe to "ungrounded" rather than fabricate a score. Run in CI on every push
-  (`.github/workflows/ci.yml`) alongside lint and a production build.
+## Moss's role
 
-### Why this exists: built (and debugged) during a live Moss outage
+Moss performs semantic candidate retrieval for threat matching, banking policy context,
+answer-to-source re-retrieval, and session trace search. The default path uses
+`client.session(name, "custom")`, `session.addDocs`, and `session.query` with
+384-dimensional caller-supplied embeddings.
 
-On submission day, Moss's embedding-model CDN was returning 401s and its cloud query
-fallback was returning 503s — a real, full outage, not a hypothetical one. Rather than
-block on it, this project's answer was to make the failure visible and safe instead of
-hidden, and to actually run the eval suite against the real outage instead of assuming
-the fallback path worked:
+The bundled encoder is **Xenova/all-MiniLM-L6-v2**, quantized to q8. The model revision
+is recorded in [provenance.json](models/all-MiniLM-L6-v2/provenance.json). Query and
+document vectors are normalized identically. Warm searches run locally, without a
+vector database or model CDN request. The UI reports **embedding time and Moss search
+time separately**; cold-start/index construction time remains in total latency.
 
-Running it for real was worth doing — it initially came back with **safety accuracy of
-41.7%**, not the ≥90% this project claims. The regex fallback had real, exploitable gaps
-(`/ignore (all|any|the)? previous instructions/i` doesn't match "ignore **your** previous
-instructions"; four whole attack categories — jailbreak variants, unauthorized-action
-requests, social engineering, malicious-content requests — had close to zero regex
-coverage at all). None of it showed up before because Moss's semantic layer was quietly
-covering for every gap whenever it was healthy. The fix wasn't cosmetic: broadened,
-category-labeled regex coverage across all six threat categories, plus short-circuiting
-the guardrail to skip the Moss round trip entirely once a local pattern already knows to
-block (previously every blocked request still waited out Moss's full timeout before
-returning). Re-running the same suite against the same live outage afterward: **18/18
-passing, 100% safety accuracy, blocked requests resolving in 0-2ms** — verified against
-reality, not asserted in a doc.
+Moss's hybrid result scores are rank-fusion scores, not calibrated confidence.
+Aegis calculates cosine similarity **only for candidates returned by Moss** before
+applying safety thresholds. See [moss.ts](src/lib/moss.ts).
 
-The status banner reports the outage honestly on every page, and the chaos toggle exists
-so this story doesn't depend on Moss recovering before a judge looks at it. This is,
-arguably, a more honest demonstration of an "Agent Reliability, Security & Evaluation"
-submission than a scripted happy path would have been — the evaluation harness didn't
-just score the product, it found a real bug in it.
+The optional `MOSS_RETRIEVAL_MODE=cloud` uses the pre-existing cloud-loaded indexes.
+The default local-session path was implemented after the foundation-model CDN returned
+HTTP 401 during development. The working path uses the supported custom-embedding API,
+not a fake search fallback.
 
-## Tech stack
+## Measured evidence
 
-Next.js 16 (App Router, TypeScript) · Tailwind CSS v4 · `@moss-dev/moss` (Node SDK) ·
-Groq (`openai/gpt-oss-20b`, ~1000 tok/s) for generation · deployed on Vercel.
+[The recorded 32-case run](artifacts/evaluation.json) used real Moss retrieval and
+Groq generation on the development machine on September 21, 2026:
 
-Single full-stack app, no separate backend — Moss already removes the network hop that
-would normally justify one.
+| Measurement | Result |
+|---|---:|
+| All checks, including latency | 32 / 32 |
+| Adversarial inputs blocked | 20 / 20 |
+| Benign answers successfully released | 12 / 12 |
+| Benign input false positives | 0 / 12 |
+| Total-turn p95 | 545 ms |
 
-## Getting started
+This is a small **public regression suite used during development**, not an independent
+security benchmark. Results can change with cold starts, hardware, and provider state.
+Run the live evaluation to obtain a fresh measurement. No sub-10ms total-response claim
+is made; generation is a separate network call.
 
-### 1. Prerequisites
+The previous evaluation incorrectly accepted infrastructure refusals as benign passes.
+That scoring bug has been removed and regression-tested.
 
-- Node.js 20+
-- A [Moss](https://moss.dev) account (free tier) — sign up, create a project, grab
-  `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY`.
-- A free [Groq API key](https://console.groq.com) (no card required).
+## Run locally
 
-### 2. Install & configure
+Node.js 22+ recommended (CI uses Node 22).
 
-```bash
-npm install
+```sh
+npm ci
 cp .env.example .env.local
-# edit .env.local and fill in MOSS_PROJECT_ID, MOSS_PROJECT_KEY, GROQ_API_KEY
-```
-
-### 3. Seed the Moss indexes
-
-```bash
-npm run seed
-```
-
-This creates/updates three indexes from the JSON files in `data/`:
-`aegis-knowledge-base` (bank policy docs), `aegis-threat-patterns` (attack examples),
-and `aegis-eval-cases`. Safe to re-run — it upserts.
-
-### 4. Run it
-
-```bash
+# Set MOSS_PROJECT_ID, MOSS_PROJECT_KEY, GROQ_API_KEY
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the console, or
-[http://localhost:3000/eval](http://localhost:3000/eval) for the evaluation harness.
+The model is included in the repository. No model download or cloud index seeding is
+needed for the default local-session mode. Moss credentials and a Groq key are still
+required. Keep them in `.env.local`; never commit them.
 
-## Design notes / scope choices
+```sh
+npm test                 # deterministic security/failure-path tests, no credentials
+npm run lint
+npm run build
+npm start
+npm run test:e2e         # requires running app + configured providers
+npm run evaluate        # real 32-case evaluation; writes artifacts/evaluation.json
+```
 
-- **Single-turn, stateless chat.** Each message is checked and answered independently —
-  no multi-turn conversation memory. This keeps every guardrail decision auditable in
-  isolation and matches the track's focus (reliability/security of a single agent turn)
-  rather than conversation-state management.
-- **In-memory trace buffer + Moss for durability.** The live feed reads from an
-  in-process ring buffer (fast, no round trip) and every trace is also upserted to Moss
-  in the background, so trace search survives across warm instances and is semantically
-  queryable, not just a local cache.
-- **Fixed eval suite, not LLM-as-judge.** Grading adversarial cases by "did the guardrail
-  block it" and benign cases by "did it get answered and stay grounded" is deterministic
-  and fast. An LLM-judge step would add cost and latency variance without changing what
-  the track is asking for (reliability/security/evaluation *of* an agent, not a judge
-  model).
+Moss indexing is optional: `npm run seed` provisions cloud indexes for the alternate
+cloud path. It is not required to demonstrate the local native retrieval path.
 
-## License
+## Submission materials
 
-MIT — see [`LICENSE`](./LICENSE).
+- [PRD](PRD.md) · [PDF](public/submission/PRD.pdf)
+- [Architecture](ARCHITECTURE.md) · [SVG diagram](public/submission/architecture.svg)
+- [Threat model and limitations](THREAT_MODEL.md)
+- [Submission copy and checklist](SUBMISSION.md)
+- [Deployment notes](DEPLOY.md)
+- [Video](public/submission/aegis-demo.mp4) · [Captions](public/submission/demo.vtt)
+
+The two-minute demo captures the working application with an offline synthetic voice
+and captions. Its reproducible recording scripts are in [recordings](recordings).
+
+Validation: 42 unit tests and three browser tests cover live gates, evaluation,
+accessibility, exports, trace search, request validation, redaction, and session isolation.
+
+## Scope and limitations
+
+Northbridge Bank and its policies are synthetic. The app has **no banking tools** and
+cannot move money or modify accounts. Each request is a single independent turn.
+
+Similarity and numeric membership checks are heuristics, not logical entailment or a
+guarantee against prompt injection. A correct-looking number can still be attached to
+the wrong claim. The policy manifest assumes the application repository is trusted.
+
+Trace memory is per-process, session-scoped, bounded, and expires after one hour.
+Serverless restarts or instance routing can clear it. JSON exports preserve evidence;
+this build does not claim durable cloud trace storage. Evaluation history is saved in
+the visitor's browser. Rate limits are per instance.
+
+App code: [MIT](LICENSE). Bundled model: Apache-2.0; see
+[third-party notices](THIRD_PARTY_NOTICES.md). Moss SDK has its own license.

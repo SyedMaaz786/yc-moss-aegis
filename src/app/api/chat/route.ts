@@ -1,35 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { runAgentTurn } from "@/lib/agent";
-import { isRateLimited } from "@/lib/rateLimit";
-
-export const runtime = "nodejs";
-
-const bodySchema = z.object({
-  message: z.string().trim().min(1).max(1000),
-});
-
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { runAgentTurn } from '@/lib/agent';
+import { recordTrace } from '@/lib/tracing';
+import { isRateLimited } from '@/lib/rateLimit';
+import { sessionId, sessionResponse, clientIp, readJson } from '@/lib/http';
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+const schema = z.object({ message: z.string().trim().min(1).max(1000), scenario: z.enum(['live', 'outage', 'poisoned-context', 'fabricated-answer']).default('live') });
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
-  if (isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Please wait a moment before sending another message." },
-      { status: 429 }
-    );
-  }
-
-  const json = await req.json().catch(() => null);
-  const parsed = bodySchema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request: message is required (1-1000 chars)." }, { status: 400 });
-  }
-
+  if (isRateLimited('chat:' + clientIp(req))) return NextResponse.json({ error: 'Please wait a minute before trying again.' }, { status: 429 });
+  const parsed = schema.safeParse(await readJson(req).catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: 'Enter a message between 1 and 1,000 characters and a valid scenario.' }, { status: 400 });
+  const id = sessionId(req);
   try {
-    const trace = await runAgentTurn(parsed.data.message);
-    return NextResponse.json({ trace });
-  } catch (err) {
-    console.error("[/api/chat] error", err);
-    const message = err instanceof Error ? err.message : "Internal error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+    const trace = await runAgentTurn(parsed.data.message, parsed.data.scenario);
+    recordTrace(trace, id);
+    return sessionResponse({ trace }, id);
+  } catch { return sessionResponse({ error: 'The request could not complete. Please try again.' }, id, 503); }
 }

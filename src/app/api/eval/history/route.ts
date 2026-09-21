@@ -1,9 +1,2 @@
-import { NextResponse } from "next/server";
-import { getEvalHistory } from "@/lib/evaluation";
-
-export const runtime = "nodejs";
-
-export async function GET() {
-  const history = await getEvalHistory();
-  return NextResponse.json({ history });
-}
+import { NextResponse } from 'next/server';
+export async function GET() { return NextResponse.json({ history: [], retention: 'Reports are stored in your browser and available as JSON exports.' }); }

@@ -7,6 +7,11 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    "recordings/.tools/**",
+    "recordings/.work/**",
+    "public/submission/**",
+    "models/**",
+    "test-results/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

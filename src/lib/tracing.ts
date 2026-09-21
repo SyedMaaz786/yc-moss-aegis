@@ -1,72 +1,41 @@
-import { INDEXES, getMossClient, mossQuery } from "./moss";
-import type { Trace } from "./types";
-
-declare global {
-  var __aegisTraceBuffer: Trace[] | undefined;
+import { getMossClient, withTimeout } from './moss';
+import { embed } from './embeddings';
+import { redactSensitive } from './privacy';
+import type { Trace } from './types';
+declare global { var __aegisPrivateSessions: Map<string, { traces: Trace[]; updated: number }> | undefined; }
+const sessions = globalThis.__aegisPrivateSessions ??= new Map<string, { traces: Trace[]; updated: number }>();
+export function recordTrace(trace: Trace, session: string): void {
+  for (const [id, item] of sessions) if (Date.now() - item.updated > 3600000) sessions.delete(id);
+  if (sessions.size >= 200 && !sessions.has(session)) sessions.delete(sessions.keys().next().value!);
+  const traces = sessions.get(session)?.traces ?? [];
+  traces.unshift({ ...trace, userMessage: redactSensitive(trace.userMessage), answer: trace.answer ? redactSensitive(trace.answer) : undefined });
+  sessions.set(session, { traces: traces.slice(0, 50), updated: Date.now() });
 }
-
-const MAX_BUFFER = 200;
-
-function buffer(): Trace[] {
-  if (!globalThis.__aegisTraceBuffer) {
-    globalThis.__aegisTraceBuffer = [];
-  }
-  return globalThis.__aegisTraceBuffer;
+export function getRecentTraces(session: string): Trace[] {
+  const item = sessions.get(session);
+  if (!item || Date.now() - item.updated > 3600000) return [];
+  return item.traces;
 }
-
-/** Records a trace to the in-memory feed (for the live dashboard) and, best-effort, to Moss for durable semantic search over trace history. */
-export function recordTrace(trace: Trace): void {
-  const buf = buffer();
-  buf.unshift(trace);
-  if (buf.length > MAX_BUFFER) buf.length = MAX_BUFFER;
-  void persistTrace(trace);
+export function getSessionStats(session: string) {
+  const traces = getRecentTraces(session);
+  const blocked = traces.filter(t => t.guardrailVerdict === 'block').length;
+  const warned = traces.filter(t => t.guardrailVerdict === 'warn').length;
+  return { total: traces.length, blocked, warned, allowed: traces.length - blocked - warned,
+    avgLatencyMs: traces.length ? traces.reduce((sum, t) => sum + t.totalMs, 0) / traces.length : 0 };
 }
-
-export function getRecentTraces(limit = 50): Trace[] {
-  return buffer().slice(0, limit);
-}
-
-export function getSessionStats() {
-  const traces = buffer();
-  const total = traces.length;
-  const blocked = traces.filter((t) => t.guardrailVerdict === "block").length;
-  const warned = traces.filter((t) => t.guardrailVerdict === "warn").length;
-  const latencies = traces.map((t) => t.totalMs).sort((a, b) => a - b);
-  const avgLatencyMs = latencies.length ? latencies.reduce((s, l) => s + l, 0) / latencies.length : 0;
-  const groundingScores = traces.filter((t) => typeof t.groundingScore === "number").map((t) => t.groundingScore!);
-  const avgGroundingScore = groundingScores.length
-    ? groundingScores.reduce((s, v) => s + v, 0) / groundingScores.length
-    : undefined;
-  return { total, blocked, warned, allowed: total - blocked - warned, avgLatencyMs, avgGroundingScore };
-}
-
-async function persistTrace(trace: Trace): Promise<void> {
-  try {
-    const client = getMossClient();
-    await client.addDocs(
-      INDEXES.traces,
-      [
-        {
-          id: trace.id,
-          text: `${trace.userMessage} => ${trace.answer ?? `[${trace.guardrailVerdict}] ${trace.blockedReason ?? ""}`}`,
-          metadata: {
-            verdict: trace.guardrailVerdict,
-            threat_type: trace.threatType ?? "",
-            grounding_verdict: trace.groundingVerdict ?? "",
-            total_ms: String(Math.round(trace.totalMs)),
-            timestamp: trace.timestamp,
-          },
-        },
-      ],
-      { upsert: true }
-    );
-  } catch (err) {
-    // Non-fatal: the live dashboard already has it in the in-memory buffer.
-    console.error("[tracing] failed to persist trace to Moss", err);
-  }
-}
-
-export async function searchTraces(query: string, topK = 10) {
-  const result = await mossQuery(INDEXES.traces, query, { topK: topK + 1 });
-  return { ...result, docs: result.docs.filter((d) => d.metadata?.seed !== "true").slice(0, topK) };
+export async function searchTraces(query: string, sessionId: string) {
+  const traces = getRecentTraces(sessionId);
+  if (!traces.length) return { docs: [], timeTakenInMs: 0 };
+  return withTimeout((async () => {
+    const session = await getMossClient().session('trace-search-' + sessionId, 'custom');
+    try {
+      const docs = [];
+      for (const t of traces) {
+        const text = [t.userMessage, t.outcome, t.threatType, t.blockedReason].filter(Boolean).join(' ');
+        docs.push({ id: t.id, text, embedding: await embed(text), metadata: { verdict: t.guardrailVerdict } });
+      }
+      await session.addDocs(docs);
+      return await session.query(redactSensitive(query), { embedding: await embed(redactSensitive(query)), topK: 5 });
+    } finally { await session.close(); }
+  })(), 10000);
 }

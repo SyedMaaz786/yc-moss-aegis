@@ -1,36 +1,18 @@
-import { NextResponse } from "next/server";
-import { mossQuery, INDEXES } from "@/lib/moss";
-import { isChaosMossDown } from "@/lib/chaos";
-
-export const runtime = "nodejs";
-
-/**
- * Live health probe for the Moss retrieval layer itself, surfaced in the UI
- * as a banner. Uses the same cached `ensureLoaded` path as real traffic (not
- * a separate "ping" mechanism), so this reports exactly what the agent is
- * actually experiencing — including a real failover event if Moss's model
- * CDN or query path is unreachable, which the guardrail pipeline already
- * degrades gracefully around (see src/lib/agent.ts, src/lib/guardrails.ts).
- */
+import { NextResponse } from 'next/server';
+import { mossQuery, INDEXES } from '@/lib/moss';
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+let cached: { data: object; expires: number } | undefined;
 export async function GET() {
+  if (cached && cached.expires > Date.now()) return NextResponse.json(cached.data, { headers: { 'Cache-Control': 'no-store' } });
   const start = performance.now();
+  let data;
   try {
-    const result = await Promise.race([
-      mossQuery(INDEXES.threats, "system health check", { topK: 1 }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Moss query timed out after 4s")), 4000)),
-    ]);
-    return NextResponse.json({
-      moss: "up",
-      roundTripMs: Math.round(performance.now() - start),
-      mossReportedMs: result.timeTakenInMs,
-      checkedAt: new Date().toISOString(),
-    });
-  } catch (err) {
-    return NextResponse.json({
-      moss: "down",
-      simulated: isChaosMossDown(),
-      error: err instanceof Error ? err.message : "Unknown Moss error",
-      checkedAt: new Date().toISOString(),
-    });
-  }
+    const result = await mossQuery(INDEXES.knowledge, 'daily transfer limits', { topK: 1 });
+    await mossQuery(INDEXES.threats, 'security check', { topK: 1 });
+    data = { moss: 'up', mode: result.mode, roundTripMs: performance.now() - start, mossReportedMs: result.timeTakenInMs,
+      searchMs: result.searchMs, embeddingMs: result.embeddingMs, generationConfigured: Boolean(process.env.GROQ_API_KEY), checkedAt: new Date().toISOString() };
+  } catch { data = { moss: 'down', error: 'Retrieval is unavailable. Requests will fail safely.', checkedAt: new Date().toISOString() }; }
+  cached = { data, expires: Date.now() + 15000 };
+  return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
 }

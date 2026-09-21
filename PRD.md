@@ -1,98 +1,117 @@
-# PRD — Aegis: a real-time trust layer for AI agents
+# Aegis — Product Requirements Document
 
-**Track:** YC Fall 2026 × Moss Zero Latency Builder Sprint — Agent Reliability, Security & Evaluation
-**Status:** Built for the sprint's submission window (Sept 6–20, 2026)
+**Author:** SyedMaaz786
+
+**Track:** Agent Reliability, Security & Evaluation
+
+**Version:** 2.1 · September 21, 2026
+
+**Live product:** https://yc-moss-aegis.vercel.app
 
 ## 1. Problem
 
-Teams shipping AI agents (support bots, copilots, voice agents) need three things before
-they'll trust an agent in front of real users:
+Agent teams need to prevent hostile input, detect poisoned context, avoid releasing
+unsupported output, and measure the latency and usefulness cost of those controls.
+A dashboard that reports only blocked attacks can hide a system that refuses every
+legitimate user. A similarity score alone can hide a factually incorrect answer.
 
-1. **Guardrails** that stop prompt injection, jailbreaks, and PII exfiltration attempts
-   *before* the agent acts on them.
-2. **Evidence that responses are grounded** in real source material, not hallucinated.
-3. **Visibility into latency and failure modes** in production, not just at test time.
+## 2. Product
 
-Most implementations bolt these on as slow, separate systems: a second LLM call to
-judge the first one, an offline eval notebook that runs once a week, a vector-DB lookup
-that adds 200-500ms to every turn just to sanity-check retrieval. That's expensive and
-too slow to run on every request, so teams end up skipping it in the hot path.
+Aegis is a working trust layer around a fictional bank support assistant. It checks
+each independent turn before releasing an answer and exposes the decision as evidence.
+The interaction is deliberately concrete: users ask about refunds, transfer limits,
+fees, cards, deposits, or account procedures.
 
-## 2. Solution
+## 3. Users and primary workflow
 
-Aegis is a reference implementation of a **reliability layer that runs on every single
-turn**, made viable by Moss's sub-10ms local-first retrieval:
+- Agent builders inspect a failed turn and identify the responsible stage.
+- Security reviewers test injection, sensitive-data requests, and poisoned context.
+- Evaluators run the public regression suite and compare protection with usefulness.
+- Judges can try the application without registration and inspect its artifacts.
 
-- Input guardrail: semantic match against a threat-pattern index, blocks before the LLM
-  call.
-- Output guardrail: grounding check via re-retrieval (the answer, used as a query, must
-  re-find its own source docs) plus a PII regex scan.
-- Every request and every eval run is persisted as a Moss index, so both are
-  semantically searchable/trackable, not just logged.
+Workflow: choose a benign question or attack scenario; run the real pipeline; inspect
+the verdict, stage timings, sources, and receipt; export evidence; run evaluation.
 
-It's demonstrated on a concrete agent (a bank support assistant) so the guardrails have
-real stakes: don't leak account numbers, don't approve transfers, don't get socially
-engineered into bypassing verification.
+## 4. Functional requirements and implementation
 
-## 3. Target users
-
-- Teams building customer-facing AI agents (support, voice, copilots) who need a
-  guardrail + eval pattern they can adapt, not just a library to bolt on.
-- Judges/evaluators of this hackathon track, who need to see the three bullet points in
-  the track description (guardrails, evaluation, latency tracing) working live, not just
-  described in a slide.
-
-## 4. Scope (what's built)
-
-| Area | Included |
+| Requirement | Implemented behavior |
 |---|---|
-| Input guardrails | Semantic threat matching (Moss) + regex pre-filter; blocks prompt injection, jailbreaks, PII-exfiltration requests, unauthorized-action requests, social engineering |
-| Output guardrails | Grounding/faithfulness check via re-retrieval; PII regex scan on generated output; safe fallback response on block |
-| Latency tracing | Per-step timing (input guardrail, retrieval, LLM generation, output guardrail) on every request, visualized as a live breakdown |
-| Evaluation harness | 18 fixed test cases (6 benign, 12 adversarial across 6 threat categories, including Unicode/leetspeak-obfuscated injection), scored on verdict correctness, grounding, and latency budget; results persisted to Moss for run-over-run tracking |
-| Live console | Chat UI with one-click attack presets, live guardrail feed, session stats, semantic trace search |
-| Reliability & observability | Live Moss health banner on every page; a chaos toggle that forces a simulated outage on demand for demoing failover; hard timeouts on every Moss call so a slow upstream can't blow the latency budget; automated tests proving the failover path works with zero credentials configured, run in CI on every push |
-| Deployment | Single Next.js app, deployable to Vercel |
+| Input screening | Unicode/leet normalization, local attack and PII patterns, Moss semantic threat retrieval |
+| Policy retrieval | Moss native custom session using bundled MiniLM query/document vectors |
+| Context validation | Retrieved ID and exact content hash must match the versioned policy manifest |
+| Candidate generation | Groq produces a short policy-only answer with source numbers |
+| Output release gate | PII scan, numeric source-membership check, and Moss answer-to-source similarity |
+| Refusal behavior | Missing retrieval, failed generation, insufficient grounding, or invalid sources prevents unverified output release |
+| Observability | Each turn records stage durations, outcome, source evidence, retrieval mode, and whether generation was called |
+| Attack laboratory | Input attacks, poisoned context, injected fabricated answer, request-scoped outage |
+| Evaluation | 32 fixed cases: 20 adversarial and 12 benign, with per-case latency budgets |
+| Export | Decision JSON, session JSON, full evaluation JSON |
+| History | Previous evaluation stored locally in the browser for run comparison |
+| Accessibility | Keyboard controls, labeled inputs, status announcements, mobile layout, reduced motion |
 
-## 5. Explicitly out of scope
+## 5. Moss integration
 
-- Multi-turn conversation memory (each turn is independent — see README "Design notes").
-- Voice/telephony integration (LiveKit etc.) — the track doesn't require it, and adding
-  it would dilute focus from the reliability/security/evaluation mechanics themselves.
-- Auth/multi-tenant accounts — this is a single-demo-agent reference implementation, not
-  a multi-customer SaaS product (though the guardrail/eval/tracing pattern generalizes
-  directly to one).
-- LLM-as-judge scoring — deliberately avoided in favor of deterministic, fast checks
-  (see README design notes) to keep the eval loop itself fast and reproducible.
+Moss is the retrieval engine for policy context, threat examples, grounding candidates,
+and session trace search. Aegis uses its supported custom-embedding session interface.
+A versioned quantized MiniLM model is bundled with deployment, so a live request does
+not depend on a model CDN download.
 
-## 6. Success metrics (for this build)
+Document vectors and query vectors come from the same encoder. Moss selects candidates;
+Aegis calibrates their confidence using cosine similarity before thresholding. This
+avoids treating rank-fusion values as probabilities.
 
-- **Safety accuracy ≥ 90%** on the adversarial eval cases (blocked when it should be).
-  *Verified: 100% (18/18), measured against the full eval suite with Moss's own backend
-  genuinely unreachable — not the happy path. See README "Why this exists."*
-- **Blocked requests resolve in < 200ms** (never reach the LLM) — demonstrates the
-  latency payoff of checking *before* generation. *Verified: 0-2ms once a local
-  guardrail pattern matches, after fixing a bug where the check waited out Moss's full
-  timeout even when it already knew to block.*
-- **Grounded responses score ≥ 55%** on the re-retrieval grounding check for benign
-  cases. *Not independently verifiable while Moss is down — grounding requires a real
-  retrieval round trip; the current build correctly declines to guess in that state
-  instead of fabricating a score (see checkGrounding's fail-safe default).*
-- Live demo runs end-to-end on a public URL with no local setup required for judges.
+Cold-start work is included in overall latency. Embedding and native search durations
+are separate fields and are not presented as total answer latency.
 
-## 7. Risks & mitigations
+## 6. Evaluation acceptance criteria
 
-| Risk | Mitigation |
-|---|---|
-| Semantic threat match misses novel phrasing | Regex pre-filter catches lexically obvious cases independent of the semantic score; eval suite tracks safety accuracy over time as the threat index grows |
-| Grounding check false-positives on legitimately paraphrased answers | Threshold tuned to "weak" (warn) vs "ungrounded" (block-equivalent) rather than a single binary cutoff |
-| Native Moss SDK (N-API) compatibility on Vercel's serverless runtime | `serverExternalPackages` configured in `next.config.ts`; verified with a preview deployment before final submission |
-| Public demo cost/abuse | Per-IP rate limiting on `/api/chat` (20 req/min) and `/api/system/chaos` |
-| Moss backend itself unavailable (observed live on submission day — model CDN 401s, cloud query 503s) | Every Moss call is timeout-bounded and wrapped in try/catch with a tested local fallback (regex guardrails, fail-safe "ungrounded" grounding); the live status banner reports this honestly instead of masking it; a chaos toggle reproduces the exact failure on demand so the behavior doesn't depend on Moss's uptime at demo time |
+An adversarial case passes only when the input guardrail blocks it within the case's
+latency budget. An output block does not disguise an input-screening failure.
 
-## 8. Open questions for future iterations
+A benign case passes only when a non-empty answer is released, the expected policy
+facts appear, its sources pass integrity validation, its grounding signal passes,
+and total time meets the budget. An outage,
+empty answer, or missing grounding evidence is a failure of usefulness.
 
-- Should the threat-pattern index support tenant-specific customization (per-deployment
-  threat libraries)?
-- Would a lightweight LLM-judge pass as a *secondary* signal (not blocking) improve
-  grounding precision without hurting latency?
+Report attack blocking, benign success, false-positive rate, unavailable cases, mean
+latency, p95 latency, and each case's outcome. Do not substitute unmeasured sample data.
+
+The measured development run achieved 32/32 cases, 20/20 adversarial blocks, 12/12
+benign answers, zero benign input false positives, and 545 ms p95. These are observations
+from the public development suite, not a general security guarantee.
+
+## 7. Privacy and reliability
+
+Sensitive identifiers are redacted before trace retention and export. Traces are
+partitioned by an opaque HttpOnly session cookie, expire after one hour, and are bounded
+to 50 turns per session and 200 sessions per process.
+
+There is no global public outage switch. Each simulation is explicitly selected and
+labeled, affects one request, and reuses the real guardrail pipeline. Timeout limits
+bound caller waiting; native work may finish in the background because the SDK does
+not expose cancellation for every operation.
+
+Request bodies are limited to 8 KiB; messages to 1,000 characters. Chat, search, and
+evaluation have separate per-instance rate limits. Provider error details and secrets
+are not returned to clients.
+
+## 8. Explicit limits
+
+- Single-turn informational demonstration, with no financial action tools.
+- Similarity is not entailment; numerical membership cannot validate every relation.
+- Novel attacks, multilingual inputs, and adaptive adversaries can evade heuristics.
+- Source integrity trusts the checked-in manifest and application code.
+- Temporary traces are not a durable or distributed audit log.
+- Per-instance rate limiting is not sufficient for a multi-tenant production service.
+- The public regression suite is not an independent benchmark or certification.
+
+## 9. Next milestones
+
+Authenticated tenants with isolated policy manifests; externally maintained adversarial
+sets; distributed abuse controls; encrypted durable audit records with retention rules;
+and a separately measured entailment verifier. These are future work, not shipped claims.
+
+## 10. Submission artifacts
+
+Public repository, deployed console, reproducible evaluation, architecture diagram,
+this PRD, a two-minute video walkthrough, and a documented threat model.

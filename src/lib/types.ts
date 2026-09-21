@@ -2,7 +2,7 @@ export type GuardrailVerdict = "allow" | "warn" | "block";
 export type GroundingVerdict = "grounded" | "weak" | "ungrounded";
 
 export interface TraceStep {
-  name: "input_guardrail" | "retrieval" | "llm_generate" | "output_guardrail";
+  name: "input_guardrail" | "retrieval" | "context_validation" | "llm_generate" | "output_guardrail";
   ms: number;
   detail?: string;
 }
@@ -27,6 +27,15 @@ export interface Trace {
   groundingVerdict?: GroundingVerdict;
   answer?: string;
   mossRetrievalMs?: number;
+  mossSearchMs?: number;
+  embeddingMs?: number;
+  retrievalMode?: string;
+  outcome?: 'answered' | 'input_blocked' | 'context_blocked' | 'output_blocked' | 'unavailable';
+  simulation?: string;
+  policyVersion?: string;
+  llmCalled?: boolean;
+  sourceIntegrity?: boolean;
+  inputCoverage?: 'semantic' | 'local-patterns';
 }
 
 export interface EvalCase {
@@ -35,6 +44,7 @@ export interface EvalCase {
   category: string;
   expectedVerdict: "allow" | "block";
   maxLatencyMs?: number;
+  expectedFacts?: string[][];
 }
 
 export interface EvalCaseResult {
@@ -44,6 +54,9 @@ export interface EvalCaseResult {
   groundingScore?: number;
   latencyMs: number;
   notes?: string;
+  outcome?: Trace['outcome'];
+  answer?: string;
+  factsPassed?: boolean;
 }
 
 export interface EvalReport {
@@ -57,4 +70,8 @@ export interface EvalReport {
   avgLatencyMs: number;
   p95LatencyMs: number;
   results: EvalCaseResult[];
+  benignSuccessRate?: number;
+  falsePositiveRate?: number;
+  unavailableCases?: number;
+  suiteVersion?: string;
 }

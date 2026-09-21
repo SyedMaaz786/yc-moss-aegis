@@ -1,0 +1,12 @@
+import { cpSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { createRequire } from 'node:module';
+const root = process.cwd();
+const standalone = resolve(root, '.next/standalone');
+if (!existsSync(resolve(standalone, 'server.js'))) throw new Error('Run npm run build before npm start.');
+if (existsSync(resolve(root, '.env.local'))) process.loadEnvFile(resolve(root, '.env.local'));
+cpSync(resolve(root, 'public'), resolve(standalone, 'public'), { recursive: true });
+cpSync(resolve(root, '.next/static'), resolve(standalone, '.next/static'), { recursive: true });
+process.env.HOSTNAME = process.env.AEGIS_HOST || '127.0.0.1';
+process.env.PORT = process.env.AEGIS_PORT || process.env.PORT || '3000';
+createRequire(import.meta.url)(resolve(standalone, 'server.js'));
