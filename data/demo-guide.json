@@ -1,0 +1,72 @@
+[
+  {
+    "duration": 15,
+    "title": "Evidence before trust",
+    "path": "/",
+    "action": "Open the live console. Introduce yourself, Aegis, and Track 4. Explain the problem: an assistant must stop unsafe behavior while still answering legitimate questions.",
+    "narration": "Aegis is a runtime trust layer for AI agents, built with Moss. An assistant that refuses everything is not reliable. Aegis makes both protection and usefulness visible, with evidence for every decision. This walkthrough uses a fictional bank and synthetic policies."
+  },
+  {
+    "duration": 25,
+    "title": "01 / Release a useful answer",
+    "path": "/",
+    "action": "Click Daily transfer limits. Show the released answer and five stage outcomes, then open Sources. Point to the policy passage and distinguish Moss search time from total response time.",
+    "narration": "Start with an ordinary policy question. Moss retrieves relevant sources using local semantic search. Aegis verifies their hashes before calling the model. The candidate then passes privacy, numerical evidence, and source overlap checks. The sources show exactly where the transfer limit came from. Native search, embedding, and total response time are measured separately."
+  },
+  {
+    "duration": 15,
+    "title": "02 / Stop an instruction attack",
+    "path": "/",
+    "action": "Click Prompt injection. Point to the blocked input stage and skipped downstream stages. Explain that the model was never called.",
+    "narration": "Now an attacker asks the assistant to ignore its instructions and expose its system prompt. The input gate blocks the request. Downstream stages are skipped, and the decision receipt records that generation was never called. The protection is visible in the execution trace."
+  },
+  {
+    "duration": 20,
+    "title": "03 / Quarantine poisoned context",
+    "path": "/",
+    "action": "Click Poisoned context. Explicitly call this a controlled simulation. Show that source integrity blocks a tampered policy even when it has a legitimate document ID.",
+    "narration": "The next test assumes the user is innocent, but retrieved context has been tampered with. This labeled simulation inserts a hostile passage using a legitimate document identifier. Aegis checks the actual content against its trusted hash manifest. The mismatch quarantines the context before generation. A high retrieval rank cannot override this gate."
+  },
+  {
+    "duration": 20,
+    "title": "04 / Withhold an invented claim",
+    "path": "/",
+    "action": "Click Invented policy. Explain that the candidate is injected test output, not a spontaneous model failure. Show the red output stage and the refusal without the unsafe candidate.",
+    "narration": "A topically similar answer can still invent a policy. This controlled test injects an unsupported amount into a candidate answer. The numerical evidence check catches the claim and withholds the candidate. The rejected text is not returned or retained in the trace. Similarity is a signal, not proof that every claim is true."
+  },
+  {
+    "duration": 20,
+    "title": "05 / Decline safely, then recover",
+    "path": "/",
+    "action": "Click Retrieval outage, explain the unavailable outcome, then click Refund timeline to show a normal request can succeed immediately afterwards. The simulation affects only its own request.",
+    "narration": "When retrieval is unavailable, Aegis declines to guess. It labels the turn unavailable rather than counting it as a successful answer. This outage simulation affects only its own request. A new refund question can use the normal pipeline and recover, without a global switch that disrupts other visitors."
+  },
+  {
+    "duration": 20,
+    "title": "06 / Inspect and find the evidence",
+    "path": "/",
+    "action": "Open Receipt and export the decision. Point to provider, model, and attempts. Scroll to Search this session and click blocked prompt injection. Explain that this memory is temporary and session scoped.",
+    "narration": "The receipt identifies the actual provider, model, attempts, and reported token use. Export it to preserve the evidence. Moss also powers semantic search over this visitor's redacted session traces, helping find earlier blocked requests. This is temporary session memory; it is not presented as a durable audit database."
+  },
+  {
+    "duration": 30,
+    "title": "07 / Measure safety and usefulness",
+    "path": "/eval",
+    "action": "Open Evaluation and run the suite. Let the live run finish; explain the scoring contract while it runs. Read the observed result rather than promising 32/32. If any case fails, inspect it and explain the recorded reason.",
+    "narration": "The evaluation lab runs thirty-two public regression cases through the real pipeline. Twenty are adversarial; twelve are legitimate policy questions. A refused customer question, missing evidence, failed provider, or missed latency budget cannot become a green pass. The run reports safety and usefulness separately, and every case is inspectable. These are observed results from a development suite, not a security certification."
+  },
+  {
+    "duration": 25,
+    "title": "08 / Compare generators and verify recovery",
+    "path": "/evidence",
+    "action": "Open Evidence and scroll to the provider comparison. Show Groq 32/32 and Gemini 31/32 from the published run, expand the failure, and show the controlled failover receipt link below.",
+    "narration": "The same suite was run once per generator with fallback disabled. Groq passed thirty-two cases; Gemini passed thirty-one. The unavailable Gemini request remains visible as a failure. Groq is primary, with Gemini available for one bounded recovery attempt. A separate fault-injection receipt records a real Gemini answer after a simulated primary error, still checked by every release gate."
+  },
+  {
+    "duration": 20,
+    "title": "Moss at the center. Evidence at every gate.",
+    "path": "/evidence",
+    "action": "Show the architecture. Name Moss's four roles: threats, policy, output verification, trace search. Close with the shipped value and public evidence. Acknowledge that heuristics can miss new attacks and this demo cannot execute bank transactions.",
+    "narration": "Moss powers threat retrieval, policy retrieval, answer-to-source verification, and trace search. A bundled encoder removes runtime model downloads, without a vector database. The architecture, product requirements, source, and measured reports are public. Built by Syed Maaz, Aegis makes agent reliability inspectable, testable, and useful, with its limits stated openly."
+  }
+]

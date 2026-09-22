@@ -6,7 +6,6 @@ import knowledge from '../../data/knowledge-base.json';
 import threats from '../../data/threat-patterns.json';
 export const INDEXES = {
   knowledge: 'aegis-knowledge-base', threats: 'aegis-threat-patterns',
-  evalCases: 'aegis-eval-cases', traces: 'aegis-traces', evalRuns: 'aegis-eval-runs',
 } as const;
 export type MossResult = SearchResult & { mode: 'moss-local' | 'moss-cloud'; embeddingMs: number; searchMs: number };
 let client: MossClient | undefined;

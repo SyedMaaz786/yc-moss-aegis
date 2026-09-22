@@ -4,7 +4,7 @@
 
 **Track:** Agent Reliability, Security & Evaluation
 
-**Version:** 2.2 · September 21, 2026
+**Version:** 2.3 · September 22, 2026
 
 **Live product:** https://yc-moss-aegis.vercel.app
 
@@ -42,7 +42,7 @@ the verdict, stage timings, sources, and receipt; export evidence; run evaluatio
 | Candidate generation | Groq primary with optional HiDevs Gemini backup; both produce candidates for the same release gate |
 | Output release gate | PII scan, numeric source-membership check, and Moss answer-to-source similarity |
 | Refusal behavior | Missing retrieval, failed generation, insufficient grounding, or invalid sources prevents unverified output release |
-| Observability | Each turn records stage durations, outcome, source evidence, retrieval mode, and whether generation was called |
+| Observability | Each turn records explicit stage status, duration, outcome, source evidence, retrieval mode, and whether generation was called |
 | Attack laboratory | Input attacks, poisoned context, injected fabricated answer, request-scoped outage |
 | Evaluation | 32 fixed cases: 20 adversarial and 12 benign, with per-case latency budgets |
 | Export | Decision JSON, session JSON, full evaluation JSON |
@@ -122,4 +122,6 @@ and a separately measured entailment verifier. These are future work, not shippe
 ## 10. Submission artifacts
 
 Public repository, deployed console, reproducible evaluation, architecture diagram,
-this PRD, a two-minute video walkthrough, and a documented threat model.
+this PRD, a 3:30 reference walkthrough with captions and a rehearsal guide, and a
+documented threat model. The updated portal requires the participant to record their
+own 1–7 minute screen/camera/voice demonstration; the reference video is preparation.

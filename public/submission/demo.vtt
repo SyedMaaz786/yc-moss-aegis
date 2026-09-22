@@ -1,88 +1,139 @@
 WEBVTT
 
-00:00:00.150 --> 00:00:04.240
-Meet Aegis: a runtime trust layer for AI agents, built with Moss.
+00:00:00.150 --> 00:00:03.510
+Aegis is a runtime trust layer for AI agents, built with Moss.
 
-00:00:04.240 --> 00:00:09.148
-The goal is simple: stop unsafe behavior without making the assistant useless.
+00:00:03.510 --> 00:00:06.383
+An assistant that refuses everything is not reliable.
 
-00:00:09.148 --> 00:00:11.350
-Every decision comes with evidence.
+00:00:06.383 --> 00:00:10.990
+Aegis makes both protection and usefulness visible, with evidence for every decision.
 
-00:00:12.150 --> 00:00:14.489
-Start with an ordinary banking question.
+00:00:10.990 --> 00:00:14.350
+This walkthrough uses a fictional bank and synthetic policies.
 
-00:00:14.489 --> 00:00:18.174
-Moss retrieves the relevant policy using local semantic search.
+00:00:15.150 --> 00:00:17.568
+Start with an ordinary policy question.
 
-00:00:18.174 --> 00:00:20.747
-Source hashes are checked before generation.
+00:00:17.568 --> 00:00:21.288
+Moss retrieves relevant sources using local semantic search.
 
-00:00:20.747 --> 00:00:24.782
-The answer then passes privacy, numerical, and source overlap checks.
+00:00:21.288 --> 00:00:24.575
+Aegis verifies their hashes before calling the model.
 
-00:00:24.782 --> 00:00:28.350
-We can inspect the exact policy and the timing of each stage.
+00:00:24.575 --> 00:00:29.597
+The candidate then passes privacy, numerical evidence, and source overlap checks.
 
-00:00:29.150 --> 00:00:32.200
-Now an attacker asks the agent to ignore its instructions.
+00:00:29.597 --> 00:00:33.317
+The sources show exactly where the transfer limit came from.
 
-00:00:32.200 --> 00:00:34.409
-Aegis stops the request at the input gate.
+00:00:33.317 --> 00:00:37.905
+Native search, embedding, and total response time are measured separately.
 
-00:00:34.409 --> 00:00:37.879
-The trace proves that neither policy retrieval nor generation ran.
+00:00:40.150 --> 00:00:44.918
+Now an attacker asks the assistant to ignore its instructions and expose its system prompt.
 
-00:00:37.879 --> 00:00:41.350
-That prevents the attack while avoiding an unnecessary model call.
+00:00:44.918 --> 00:00:46.700
+The input gate blocks the request.
 
-00:00:42.150 --> 00:00:50.693
-What if the user is innocent but the retrieved context is poisoned? This labeled simulation inserts a tampered policy with a valid document identifier.
+00:00:46.700 --> 00:00:51.782
+Downstream stages are skipped, and the decision receipt records that generation was never called.
 
-00:00:50.693 --> 00:00:56.350
-Its content hash fails the trusted manifest, so the context is quarantined before the model sees it.
+00:00:51.782 --> 00:00:54.350
+The protection is visible in the execution trace.
 
-00:00:57.150 --> 00:01:00.181
-A high similarity score does not prove an answer is true.
+00:00:55.150 --> 00:01:00.074
+The next test assumes the user is innocent, but retrieved context has been tampered with.
 
-00:01:00.181 --> 00:01:03.692
-Here we inject a plausible answer with an invented transfer limit.
+00:01:00.074 --> 00:01:04.999
+This labeled simulation inserts a hostile passage using a legitimate document identifier.
 
-00:01:03.692 --> 00:01:09.542
-The independent numerical evidence check detects an amount absent from the source and withholds the candidate.
+00:01:04.999 --> 00:01:08.651
+Aegis checks the actual content against its trusted hash manifest.
 
-00:01:09.542 --> 00:01:11.350
-The unsafe text is never released.
+00:01:08.651 --> 00:01:11.694
+The mismatch quarantines the context before generation.
 
-00:01:12.150 --> 00:01:15.118
-During a simulated retrieval outage, Aegis refuses to guess.
+00:01:11.694 --> 00:01:14.350
+A high retrieval rank cannot override this gate.
 
-00:01:15.118 --> 00:01:17.690
-The outcome is unavailable, not a successful answer.
+00:01:15.150 --> 00:01:18.238
+A topically similar answer can still invent a policy.
 
-00:01:17.690 --> 00:01:21.350
-The simulation affects only this request, and a later request can recover.
+00:01:18.238 --> 00:01:22.607
+This controlled test injects an unsupported amount into a candidate answer.
 
-00:01:22.150 --> 00:01:27.114
+00:01:22.607 --> 00:01:26.976
+The numerical evidence check catches the claim and withholds the candidate.
+
+00:01:26.976 --> 00:01:30.413
+The rejected text is not returned or retained in the trace.
+
+00:01:30.413 --> 00:01:33.851
+Similarity is a signal, not proof that every claim is true.
+
+00:01:35.150 --> 00:01:38.304
+When retrieval is unavailable, Aegis declines to guess.
+
+00:01:38.304 --> 00:01:42.777
+It labels the turn unavailable rather than counting it as a successful answer.
+
+00:01:42.777 --> 00:01:45.759
+This outage simulation affects only its own request.
+
+00:01:45.759 --> 00:01:52.411
+A new refund question can use the normal pipeline and recover, without a global switch that disrupts other visitors.
+
+00:01:55.150 --> 00:02:00.238
+The receipt identifies the actual provider, model, attempts, and reported token use.
+
+00:02:00.238 --> 00:02:02.358
+Export it to preserve the evidence.
+
+00:02:02.358 --> 00:02:09.383
+Moss also powers semantic search over this visitor's redacted session traces, helping find earlier blocked requests.
+
+00:02:09.383 --> 00:02:14.350
+This is temporary session memory; it is not presented as a durable audit database.
+
+00:02:15.150 --> 00:02:20.166
 The evaluation lab runs thirty-two public regression cases through the real pipeline.
 
-00:01:27.114 --> 00:01:30.385
-Attack blocking and benign success are separate metrics.
+00:02:20.166 --> 00:02:23.884
+Twenty are adversarial; twelve are legitimate policy questions.
 
-00:01:30.385 --> 00:01:35.408
-A refused customer question or missing grounding evidence cannot become a green score.
+00:02:23.884 --> 00:02:30.729
+A refused customer question, missing evidence, failed provider, or missed latency budget cannot become a green pass.
 
-00:01:35.408 --> 00:01:40.256
-Each case has an outcome and latency budget, and the complete report is exportable.
+00:02:30.729 --> 00:02:35.450
+The run reports safety and usefulness separately, and every case is inspectable.
 
-00:01:40.256 --> 00:01:43.935
-These are observed results, not a universal security guarantee.
+00:02:35.450 --> 00:02:40.289
+These are observed results from a development suite, not a security certification.
 
-00:01:45.150 --> 00:01:50.218
-Moss performs the semantic searches with a bundled embedding model, removing runtime model downloads.
+00:02:45.150 --> 00:02:49.091
+The same suite was run once per generator with fallback disabled.
 
-00:01:50.218 --> 00:01:55.135
-The source code, architecture, product requirements, threat model, and measured report are public.
+00:02:49.091 --> 00:02:52.426
+Groq passed thirty-two cases; Gemini passed thirty-one.
 
-00:01:55.135 --> 00:01:59.350
-Built by Syed Maaz, Aegis makes agent reliability visible, testable, and reviewable.
+00:02:52.426 --> 00:02:56.064
+The unavailable Gemini request remains visible as a failure.
+
+00:02:56.064 --> 00:03:00.430
+Groq is primary, with Gemini available for one bounded recovery attempt.
+
+00:03:00.430 --> 00:03:08.495
+A separate fault-injection receipt records a real Gemini answer after a simulated primary error, still checked by every release gate.
+
+00:03:10.150 --> 00:03:15.159
+Moss powers threat retrieval, policy retrieval, answer-to-source verification, and trace search.
+
+00:03:15.159 --> 00:03:19.176
+A bundled encoder removes runtime model downloads, without a vector database.
+
+00:03:19.176 --> 00:03:23.350
+The architecture, product requirements, source, and measured reports are public.
+
+00:03:23.350 --> 00:03:29.350
+Built by Syed Maaz, Aegis makes agent reliability inspectable, testable, and useful, with its limits stated openly.

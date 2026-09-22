@@ -27,10 +27,13 @@ test('release gates, source evidence, exports, accessibility and mobile layout',
   await expect(page.getByText('[1] kb-transfers-02', { exact: false })).toBeVisible();
   await page.screenshot({ path: 'artifacts/sources.png', fullPage: true });
   await scenario(/Prompt injection/, 'input_blocked');
+  await expect(page.getByRole('tabpanel').getByText('blocked', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tabpanel').getByText('SKIPPED', { exact: true })).toHaveCount(4);
   await scenario(/Poisoned context/, 'context_blocked');
   await expect(page.getByText('Context quarantined', { exact: true })).toBeVisible();
   await scenario(/Invented policy/, 'output_blocked');
   await scenario(/Retrieval outage/, 'unavailable');
+  await expect(page.getByRole('tabpanel').getByText('unavailable', { exact: true })).toBeVisible();
   await scenario(/Refund timeline/, 'answered');
   const searchResponse = page.waitForResponse(r => r.url().endsWith('/api/traces/search'));
   await page.getByRole('button', { name: 'blocked prompt injection', exact: true }).click();
@@ -50,6 +53,19 @@ test('release gates, source evidence, exports, accessibility and mobile layout',
   await page.screenshot({ path: 'artifacts/mobile.png', fullPage: true });
   const mobile = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
   expect(mobile.violations.map(v => v.id)).toEqual([]);
+});
+test('recording guide has accessible rehearsal content and working navigation', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.getByRole('heading', { name: 'Use your own screen, camera, and voice.' })).toBeVisible();
+  await page.getByRole('link', { name: 'Open the rehearsal plan' }).click();
+  await expect(page.getByRole('heading', { name: 'Your rehearsal plan' })).toBeVisible();
+  await expect(page.locator('#rehearsal article')).toHaveCount(10);
+  await page.locator('#rehearsal summary').first().click();
+  await expect(page.locator('#rehearsal details').first()).toHaveAttribute('open', '');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const a11y = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+  expect(a11y.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
 });
 test('streaming evaluation completes with honest scores', async ({ page }) => {
   await page.goto('/eval');

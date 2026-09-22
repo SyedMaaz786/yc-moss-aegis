@@ -6,7 +6,7 @@ YC Fall 2026 × Moss Builder Sprint · Track 4: Agent Reliability, Security & Ev
 
 Built by **[SyedMaaz786](https://github.com/SyedMaaz786)**.
 
-[Live console](https://yc-moss-aegis.vercel.app) · [Evaluation lab](https://yc-moss-aegis.vercel.app/eval) · [Evidence](https://yc-moss-aegis.vercel.app/evidence) · [Two-minute demo](https://yc-moss-aegis.vercel.app/demo)
+[Live console](https://yc-moss-aegis.vercel.app) · [Evaluation lab](https://yc-moss-aegis.vercel.app/eval) · [Evidence](https://yc-moss-aegis.vercel.app/evidence) · [Walkthrough & recording guide](https://yc-moss-aegis.vercel.app/demo)
 
 ![Aegis console](public/submission/console.png)
 
@@ -64,7 +64,7 @@ not a fake search fallback.
 
 ## Measured evidence
 
-[The recorded 32-case run](artifacts/evaluation.json) used real Moss retrieval and
+[The recorded 32-case run](public/submission/evaluation.json) used real Moss retrieval and
 Groq generation on the development machine on September 21, 2026:
 
 | Measurement | Result |
@@ -85,7 +85,7 @@ That scoring bug has been removed and regression-tested.
 
 ### Same-suite provider comparison
 
-[The September 21 comparison](artifacts/provider-comparison.json) ran the same public
+[The September 21 comparison](public/submission/provider-comparison.json) ran the same public
 32 cases once per provider, with warmed Moss retrieval and fallback disabled:
 
 | Generator | Cases passed | Attacks stopped | Benign success | p95 total |
@@ -98,7 +98,7 @@ sequential comparison supports the current primary-provider choice; it is not a
 general model ranking. The reported Gemini usage for completed candidates was 3,354
 tokens; billed usage, including unsuccessful requests, is tracked by the HiDevs wallet.
 
-[A separate recovery receipt](artifacts/failover.json) records a **simulated primary
+[A separate recovery receipt](public/submission/failover.json) records a **simulated primary
 HTTP 503** followed by a real Gemini answer that passed the release gates. It is a
 controlled test, not an observed production incident. An output rejected by the gates
 is withheld rather than retried with another model.
@@ -133,25 +133,46 @@ npm run lint
 npm run build
 npm start
 npm run test:e2e         # requires running app + configured providers
-npm run evaluate        # real 32-case evaluation; writes artifacts/evaluation.json
+npm run evaluate        # real 32-case evaluation; writes public/submission/evaluation.json
 ```
 
 Moss indexing is optional: `npm run seed` provisions cloud indexes for the alternate
 cloud path. It is not required to demonstrate the local native retrieval path.
 
+## Deploy and verify
+
+The repository is connected to the existing Vercel project `yc-moss-aegis`. A push to
+`main` triggers deployment. Set the server-side variables in [.env.example](.env.example)
+in the hosting environment; production enables `LLM_FALLBACK_PROVIDER=hidevs`.
+No personal customer data is required. The policies are fictional.
+
+Use Node 22+, `npm ci`, and the checked-in Vercel build configuration. The bundled CPU
+model and native runtime are traced into the deployment; optional GPU downloads are
+disabled. The API dispatches through one catch-all function, sharing warm model and
+session memory within each instance. CI checks the packaged encoder without credentials.
+
+After a successful build, run `node scripts/verify-deployment.mjs` to check public
+pages, documents, recording playback, Moss health, and generation configuration.
+For local checks, set `BASE_URL=http://127.0.0.1:3000`. Run `npm run test:e2e`
+against that URL for live gates, exports, session isolation, and evaluation. Network
+checks require configured credentials and consume provider tokens. A successful Git
+push alone is not deployment verification.
+
 ## Submission materials
 
-- [PRD](PRD.md) · [PDF](public/submission/PRD.pdf)
-- [Architecture](ARCHITECTURE.md) · [SVG diagram](public/submission/architecture.svg)
-- [Threat model and limitations](THREAT_MODEL.md)
-- [Submission copy and checklist](SUBMISSION.md)
-- [Deployment notes](DEPLOY.md)
+- [PRD](docs/PRD.md) · [PDF](public/submission/PRD.pdf)
+- [Architecture](docs/ARCHITECTURE.md) · [SVG diagram](public/submission/architecture.svg)
+- [Threat model and limitations](docs/THREAT_MODEL.md)
+- [Submission copy and checklist](docs/SUBMISSION.md)
 - [Video](public/submission/aegis-demo.mp4) · [Captions](public/submission/demo.vtt)
 
-The two-minute demo captures the working application with an offline synthetic voice
-and captions. Its reproducible recording scripts are in [recordings](recordings).
+The 3:30 reference video captures the working application with an offline synthetic
+voice and captions. The [recording guide](https://yc-moss-aegis.vercel.app/demo#rehearsal)
+provides actions and talking points. The updated HiDevs form requires the participant
+to record their own screen, camera, and voice for 1–7 minutes; this video is a rehearsal
+resource. Local production tools and intermediate captures are excluded from Git.
 
-Validation: 53 unit tests and three browser tests cover live gates, evaluation,
+Validation: 54 unit tests and four browser tests cover live gates, evaluation,
 accessibility, exports, trace search, request validation, redaction, and session isolation.
 
 ## Scope and limitations
@@ -169,4 +190,4 @@ this build does not claim durable cloud trace storage. Evaluation history is sav
 the visitor's browser. Rate limits are per instance.
 
 App code: [MIT](LICENSE). Bundled model: Apache-2.0; see
-[third-party notices](THIRD_PARTY_NOTICES.md). Moss SDK has its own license.
+[third-party notices](docs/THIRD_PARTY_NOTICES.md). Moss SDK has its own license.

@@ -30,11 +30,22 @@ https://github.com/SyedMaaz786/yc-moss-aegis
 
 https://yc-moss-aegis.vercel.app
 
-## Video Demo URL
+## Required portal recording
 
-https://yc-moss-aegis.vercel.app/demo
+The latest submission-form screenshot requires **your own screen, camera, and voice**
+recorded inside HiDevs, for **at least 60 seconds and at most 7 minutes**. An external
+video URL does not replace this recording.
 
-Direct MP4: https://yc-moss-aegis.vercel.app/submission/aegis-demo.mp4
+Rehearsal guide and 3:30 reference video: https://yc-moss-aegis.vercel.app/demo
+
+Downloadable reference: https://yc-moss-aegis.vercel.app/submission/aegis-demo.mp4
+
+Introduce yourself and use your own voice. Show live outcomes, identify controlled
+simulations, and explain the role of Moss. While evaluation runs, explain why a refused
+legitimate question fails the score. Leave room for live service timing within 7 minutes.
+
+The reference has synthetic narration and captioned footage of the working app. It is
+a preparation resource, not a recording of the participant.
 
 ## Problem statement / theme
 
@@ -80,11 +91,11 @@ retrieval while removing that runtime dependency.
 
 ## Attachments / architecture tab
 
-- PRD PDF: public/submission/PRD.pdf
-- Architecture SVG: public/submission/architecture.svg
-- Architecture PDF: public/submission/architecture.pdf
-- Measured report: public/submission/evaluation.json
-- Threat model: THREAT_MODEL.md
+- [PRD PDF](https://yc-moss-aegis.vercel.app/submission/PRD.pdf)
+- [Architecture SVG](https://yc-moss-aegis.vercel.app/submission/architecture.svg)
+- [Architecture PDF](https://yc-moss-aegis.vercel.app/submission/architecture.pdf)
+- [Measured report](https://yc-moss-aegis.vercel.app/submission/evaluation.json)
+- [Threat model](THREAT_MODEL.md) · [PDF](https://yc-moss-aegis.vercel.app/submission/THREAT_MODEL.pdf)
 
 ## Submission walkthrough — one step at a time
 
@@ -93,11 +104,18 @@ retrieval while removing that runtime dependency.
 3. Open Submit; enter the project name above.
 4. Read the GitHub consent wording yourself, then connect your GitHub account and choose
    the public yc-moss-aegis repository if you agree to that access.
-5. Paste the live and video URLs above.
+5. Paste the Live Demo URL above.
 6. Choose “Agent Reliability, Security and Evaluation.”
 7. Paste the project description and Moss explanation above.
-8. Open each URL once to verify it works, then submit.
-9. Save the confirmation/receipt. Doctor Agent feedback and any LinkedIn posting are
+8. Rehearse with the guide. Open Console, Evaluation, and Evidence in separate tabs.
+   Run one normal question to warm the app, then reload the console for a clean view.
+9. Start recording in HiDevs. Choose Entire Screen or Window, not a single Chrome tab.
+   Allow your camera and microphone. Keep the submission page open while demonstrating
+   the app in your other tabs. Do not close or reload the submission page.
+10. After at least one minute and before seven minutes, return to HiDevs and use
+    Submit recording. Do not stop screen sharing before saving the take. Review any
+    playback/confirmation the portal provides, then complete the final submission.
+11. Save the confirmation/receipt. Doctor Agent feedback and any LinkedIn posting are
    separate optional steps; this packet does not submit consent or publish a post.
 
 The assistant should guide the user through only the next unfinished step in chat.

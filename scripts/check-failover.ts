@@ -17,7 +17,7 @@ async function main() {
     assert.equal(trace.generation?.attempts[0].errorCode, 'http_503');
     assert.equal(trace.sourceIntegrity, true);
     assert.equal(trace.groundingVerdict, 'grounded');
-    await writeFile('artifacts/failover.json', JSON.stringify(trace, null, 2));
+    await writeFile('public/submission/failover.json', JSON.stringify(trace, null, 2));
     console.log(JSON.stringify({ outcome: trace.outcome, provider: trace.generation.provider, fallbackUsed: true, totalMs: trace.totalMs, reportedTokens: trace.generation.usage?.totalTokens }));
   } finally { globalThis.fetch = originalFetch; }
   process.exit(0);

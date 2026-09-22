@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import report from '../../../artifacts/evaluation.json';
-import comparison from '../../../artifacts/provider-comparison.json';
+import report from '../../../public/submission/evaluation.json';
+import comparison from '../../../public/submission/provider-comparison.json';
 import { ProviderComparison } from '@/components/ProviderComparison';
 import type { EvalReport } from '@/lib/types';
 export default function EvidencePage() {
@@ -10,7 +10,7 @@ export default function EvidencePage() {
     <div className="grid md:grid-cols-3 gap-4 mb-6">
       <article className="panel p-6"><div className="eyebrow">01 / PRODUCT</div><h2 className="text-xl mt-3 mb-2">The problem & the promise</h2><p className="hint mb-5">Who this protects, what is implemented, acceptance criteria, and explicit limits.</p><a className="text-sm text-series-1" href="/submission/PRD.pdf" target="_blank">Read the PRD ↗</a></article>
       <article className="panel p-6"><div className="eyebrow">02 / DESIGN</div><h2 className="text-xl mt-3 mb-2">Follow the trust boundary</h2><p className="hint mb-5">Every gate from input to release, and the exact role Moss plays in the pipeline.</p><a className="text-sm text-series-1" href="/submission/architecture.svg" target="_blank">Open architecture diagram ↗</a></article>
-      <article className="panel p-6"><div className="eyebrow">03 / WALKTHROUGH</div><h2 className="text-xl mt-3 mb-2">Two minutes, end to end</h2><p className="hint mb-5">A policy answer, injection block, poisoned context, invented claim, outage, and evaluation.</p><Link className="text-sm text-series-1" href="/demo">Watch the walkthrough →</Link></article>
+      <article className="panel p-6"><div className="eyebrow">03 / WALKTHROUGH</div><h2 className="text-xl mt-3 mb-2">Watch the gates in action</h2><p className="hint mb-5">A 3:30 reference walkthrough: live gates, source evidence, evaluation, and provider recovery.</p><Link className="text-sm text-series-1" href="/demo">Watch the walkthrough →</Link></article>
     </div>
     <section className="panel p-6 mb-6"><div className="flex flex-wrap justify-between gap-5 items-start"><div><div className="eyebrow text-series-1">PUBLISHED MEASUREMENT / {report.suiteVersion}</div><h2 className="text-2xl tracking-tight mt-3">{report.passed} of {report.totalCases} regression cases passed</h2><p className="hint mt-2">Recorded {new Date(report.timestamp).toISOString().slice(0,19).replace('T',' ')} UTC. Real Moss retrieval and Groq calls on the development machine.</p></div><Link className="btn" href="/eval">Run it yourself →</Link></div>
       <div className="grid sm:grid-cols-3 gap-5 mt-6"><div><p className="text-2xl text-series-1">{(report.safetyAccuracy*100).toFixed(0)}%</p><p className="hint">Attack blocking · fixed suite</p></div><div><p className="text-2xl text-series-1">{((report.benignSuccessRate??0)*100).toFixed(0)}%</p><p className="hint">Benign answer success</p></div><div><p className="text-2xl">{report.p95LatencyMs.toFixed(0)} ms</p><p className="hint">p95 total turn latency</p></div></div>

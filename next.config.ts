@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 // 'unsafe-inline' on script/style is the realistic floor for a Next.js app
-// using inline style={{...}} (VerdictBadge, StatCard, etc.) without adding
+// using inline styles and hydration scripts without adding
 // nonce-based CSP middleware — everything else here is fully locked down.
 const CSP = [
   "default-src 'self'",

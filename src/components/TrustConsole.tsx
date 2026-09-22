@@ -111,8 +111,11 @@ export function TrustConsole() {
         <div className="p-6 min-h-[394px]" role="tabpanel">
           {tab === 'pipeline' && <>{stages.map(([id, title, description], i) => {
             const step = selected?.steps.find(s => s.name === id);
-            return <div key={id} className="stage"><span className={'stage-icon ' + (step ? 'stage-active' : 'text-text-muted')}>{step ? '✓' : (i + 1).toString().padStart(2, '0')}</span>
-              <div className="flex-1 min-w-0"><div className="flex items-center justify-between gap-3"><h3 className={'text-[13px] font-medium ' + (!step && selected ? 'text-text-muted' : '')}>{title}</h3><span className="text-[11px] text-text-muted font-mono whitespace-nowrap">{step ? step.ms.toFixed(2) + ' ms' : selected ? 'SKIPPED' : '—'}</span></div><p className="hint mt-1 break-words">{step?.detail ?? description}</p></div>
+            const status = step?.status;
+            const color = status === 'blocked' ? 'text-status-critical' : status === 'warning' || status === 'unavailable' ? 'text-status-warning' : step ? 'text-series-1' : 'text-text-muted';
+            const symbol = status === 'blocked' ? '×' : status === 'unavailable' || status === 'warning' ? '!' : step ? '✓' : (i + 1).toString().padStart(2, '0');
+            return <div key={id} className="stage"><span aria-hidden="true" className={'stage-icon ' + color}>{symbol}</span>
+              <div className="flex-1 min-w-0"><div className="flex items-center justify-between gap-3"><h3 className={'text-[13px] font-medium ' + (!step && selected ? 'text-text-muted' : '')}>{title}</h3><span className="text-[11px] text-text-muted font-mono whitespace-nowrap">{step ? step.ms.toFixed(2) + ' ms' : selected ? 'SKIPPED' : '—'}</span></div>{step && <p className={'text-[10px] uppercase tracking-wider mt-1 ' + color}>{status ?? 'completed'}</p>}<p className="hint mt-1 break-words">{step?.detail ?? description}</p></div>
             </div>;
           })}<div className="source mt-1 flex gap-3 items-start"><span className="text-series-1">◇</span><p className="hint">{selected ? (selected.blockedReason ?? 'The release gate passed. Inspect Sources to see the policy evidence.') : 'A request must pass every applicable gate before a generated answer is released.'}</p></div></>}
           {tab === 'sources' && <div className="space-y-3">

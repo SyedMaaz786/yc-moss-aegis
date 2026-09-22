@@ -16,8 +16,8 @@ async function main() {
   }
   const comparison = { measuredAt: new Date().toISOString(), environment: 'Development machine; warm Moss retrieval; Groq then HiDevs; fallback disabled.',
     scope: 'One run of the same public development suite per provider. Results do not establish general model superiority. Usage includes completed candidates only; check the HiDevs wallet for billed consumption.', runs };
-  await mkdir('artifacts', { recursive: true });
-  await writeFile('artifacts/provider-comparison.json', JSON.stringify(comparison, null, 2));
+  await mkdir('public/submission', { recursive: true });
+  await writeFile('public/submission/provider-comparison.json', JSON.stringify(comparison, null, 2));
   process.exit(0);
 }
 void main().catch(() => { console.error('Provider comparison could not complete. No complete report was written.'); process.exit(1); });

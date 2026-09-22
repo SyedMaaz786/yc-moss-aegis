@@ -1,6 +1,6 @@
 # Aegis architecture
 
-![Architecture](public/submission/architecture.svg)
+![Architecture](../public/submission/architecture.svg)
 
 ## Request path
 

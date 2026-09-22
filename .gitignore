@@ -44,9 +44,7 @@ next-env.d.ts
 # local verification and rendering tools
 /test-results/
 /playwright-report/
-/recordings/.tools/
-/recordings/.work/
-/artifacts/*.png
-/artifacts/browser-results.json
-/artifacts/*.zip
-!/artifacts/evaluation.json
+/recordings/
+/artifacts/
+/AGENTS.md
+/CLAUDE.md

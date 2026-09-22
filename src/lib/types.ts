@@ -18,6 +18,7 @@ export interface GenerationEvidence {
 
 export interface TraceStep {
   name: "input_guardrail" | "retrieval" | "context_validation" | "llm_generate" | "output_guardrail";
+  status?: 'passed' | 'blocked' | 'warning' | 'unavailable';
   ms: number;
   detail?: string;
 }

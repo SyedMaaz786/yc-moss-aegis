@@ -29,4 +29,3 @@ export async function runEvalSuite(onResult?: (result: EvalCaseResult, completed
     p95LatencyMs: latencies[Math.max(0, Math.ceil(latencies.length * 0.95) - 1)] ?? 0,
   };
 }
-export async function getEvalHistory() { return []; }

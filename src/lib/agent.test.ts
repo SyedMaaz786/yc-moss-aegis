@@ -19,7 +19,10 @@ beforeEach(() => {
 describe('release gates', () => {
   it('never calls retrieval or generation for a blocked input', async () => {
     vi.mocked(checkInput).mockResolvedValue({ verdict: 'block', score: 0, latencyMs: 1 });
-    expect((await runAgentTurn('attack')).outcome).toBe('input_blocked');
+    const trace = await runAgentTurn('attack');
+    expect(trace.outcome).toBe('input_blocked');
+    expect(trace.steps).toHaveLength(1);
+    expect(trace.steps[0].status).toBe('blocked');
     expect(generateCandidate).not.toHaveBeenCalled(); expect(mossQuery).not.toHaveBeenCalled();
   });
   it('withholds ungrounded candidate text', async () => {
@@ -27,6 +30,7 @@ describe('release gates', () => {
     vi.mocked(checkGrounding).mockResolvedValue({ score: 0, verdict: 'ungrounded', latencyMs: 1, supportingDocIds: [] });
     const trace = await runAgentTurn('refund?');
     expect(trace.outcome).toBe('output_blocked');
+    expect(trace.steps.at(-1)?.status).toBe('blocked');
     expect(JSON.stringify(trace)).not.toContain('Unsupported secret answer');
   });
   it('withholds PII and invented amounts even with a high grounding score', async () => {
@@ -37,13 +41,26 @@ describe('release gates', () => {
     expect(JSON.stringify(await runAgentTurn('refund?'))).not.toContain('123-45-6789');
   });
   it('quarantines poisoned context before generation', async () => {
-    expect((await runAgentTurn('refund?', 'poisoned-context')).outcome).toBe('context_blocked');
+    const trace = await runAgentTurn('refund?', 'poisoned-context');
+    expect(trace.outcome).toBe('context_blocked');
+    expect(trace.steps.at(-1)?.status).toBe('blocked');
     expect(generateCandidate).not.toHaveBeenCalled();
   });
   it('keeps outage simulation isolated to that request', async () => {
-    expect((await runAgentTurn('refund?', 'outage')).outcome).toBe('unavailable');
+    const trace = await runAgentTurn('refund?', 'outage');
+    expect(trace.outcome).toBe('unavailable');
+    expect(trace.steps.at(-1)?.status).toBe('unavailable');
     expect(generateCandidate).not.toHaveBeenCalled();
     expect((await runAgentTurn('refund?')).outcome).toBe('answered');
+  });
+  it('treats an empty retrieval as unavailable, without alleging source tampering', async () => {
+    vi.mocked(mossQuery).mockResolvedValue({ docs: [], query: 'unknown', mode: 'moss-local', embeddingMs: 2, searchMs: .1, timeTakenInMs: 2.1 });
+    const trace = await runAgentTurn('unknown policy?');
+    expect(trace.outcome).toBe('unavailable');
+    expect(trace.threatType).toBeUndefined();
+    expect(trace.steps.at(-1)?.status).toBe('unavailable');
+    expect(trace.steps.some(s => s.name === 'context_validation')).toBe(false);
+    expect(generateCandidate).not.toHaveBeenCalled();
   });
   it('records failed generation as unavailable, never answered', async () => {
     vi.mocked(generateCandidate).mockRejectedValue(new Error('provider down'));

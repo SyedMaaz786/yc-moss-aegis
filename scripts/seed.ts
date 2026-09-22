@@ -1,8 +1,7 @@
 /**
- * Seeds (or re-seeds) the three Moss indexes Aegis depends on:
+ * Seeds the two indexes used by the optional Moss cloud retrieval mode:
  *   - aegis-knowledge-base   Northbridge Bank policy docs the agent retrieves from
  *   - aegis-threat-patterns  example jailbreak/injection/PII-exfil phrasings the guardrail matches against
- *   - aegis-eval-cases       the eval harness's own test cases, indexed for reference/search
  *
  * Run with: npm run seed
  */
@@ -16,14 +15,10 @@ config({ path: existsSync(envLocal) ? envLocal : resolve(process.cwd(), ".env") 
 
 import knowledgeBase from "../data/knowledge-base.json";
 import threatPatterns from "../data/threat-patterns.json";
-import evalCases from "../data/eval-cases.json";
 
 const INDEXES = {
   knowledge: "aegis-knowledge-base",
   threats: "aegis-threat-patterns",
-  evalCases: "aegis-eval-cases",
-  traces: "aegis-traces",
-  evalRuns: "aegis-eval-runs",
 } as const;
 
 async function upsertIndex(client: MossClient, indexName: string, docs: DocumentInfo[]) {
@@ -61,33 +56,6 @@ async function main() {
     (d) => ({ id: d.id, text: d.text, metadata: d.metadata })
   );
   await upsertIndex(client, INDEXES.threats, threatDocs);
-
-  const evalDocs: DocumentInfo[] = (
-    evalCases as { id: string; query: string; category: string; expectedVerdict: string }[]
-  ).map((c) => ({
-    id: c.id,
-    text: c.query,
-    metadata: { category: c.category, expected_verdict: c.expectedVerdict },
-  }));
-  await upsertIndex(client, INDEXES.evalCases, evalDocs);
-
-  // aegis-traces and aegis-eval-runs are written to at runtime (addDocs), which
-  // requires the index to already exist — so create them here with a seed
-  // placeholder doc. getEvalHistory()/searchTraces() filter this doc out.
-  await upsertIndex(client, INDEXES.traces, [
-    {
-      id: "seed-placeholder",
-      text: "Aegis trace log initialized.",
-      metadata: { seed: "true" },
-    },
-  ]);
-  await upsertIndex(client, INDEXES.evalRuns, [
-    {
-      id: "seed-placeholder",
-      text: "Aegis eval run log initialized.",
-      metadata: { seed: "true" },
-    },
-  ]);
 
   console.log("\nDone. Indexes ready:");
   for (const name of Object.values(INDEXES)) {
